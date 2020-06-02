@@ -3,7 +3,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdio.h>
-#define DEBUG_SBC 1
+#define DEBUG_SBC 0
 
 void start_cpu(CPU *cpu) {
 	cpu->pc = 0x0000;
@@ -3419,30 +3419,15 @@ void adc_8(CPU *cpu, uint8_t *dest, uint8_t src) {
 }
 
 void sbc_8(CPU *cpu, uint8_t *dest, uint8_t src) {
-	uint8_t old_carry = get_carry_flag(&cpu->registers);
+	int32_t old_carry = get_carry_flag(&cpu->registers);
 
-	int16_t result = *dest - src - old_carry;
-
-	set_zero_flag(&cpu->registers, (*dest) == 0);
+	int32_t result = *dest - src - old_carry;
+	set_zero_flag(&cpu->registers, (result & 0xFF) == 0);
 	set_substraction_flag(&cpu->registers, 1);
 
 	set_carry_flag(&cpu->registers, result < 0x00);
-	// set_half_carry_flag(&cpu->registers,
-	// 	(((*dest) & 0xF) - (src & 0xF) - (old_carry & 0xF)) > 0xF);
-	uint16_t older_dest = *dest;
-	*dest -= old_carry;
-	if ((*dest & 0xF) > (older_dest & 0xF)) {
-		set_half_carry_flag(&cpu->registers, 1);
-	}
-
-	older_dest = *dest;
-	*dest -= src;
-
-	if ((*dest & 0xF) > (older_dest & 0xF)) {
-		set_half_carry_flag(&cpu->registers, 1);
-	}
-
-	assert(*dest == (result & 0xFF));
+	set_half_carry_flag(&cpu->registers,
+		(((*dest) & 0xF) - (src & 0xF) - (old_carry & 0xF)) < 0);
 	*dest = result & 0xFF;
 }
 
