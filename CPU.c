@@ -1,7 +1,9 @@
 #include "CPU.h"
 #include "Instructions.h"
 #include <string.h>
+#include <assert.h>
 #include <stdio.h>
+#define DEBUG_SBC 1
 
 void start_cpu(CPU *cpu) {
 	cpu->pc = 0x0000;
@@ -86,6 +88,19 @@ void step(CPU *cpu) {
 	}
 	*/
 
+	if (opcode == 0xDE) {
+		cpu->broke = 1;
+		/*printf("Executing %.4hx at PC = %.4hx\n", opcode, cpu->pc);
+		printf("SP is at %.4hx and contains %.4hx\n", cpu->sp, get_16(&cpu->memory[cpu->sp]));
+		print_registers(&cpu->registers);
+		printf("[dfff] = %.4hx\n", get_16(&cpu->memory[0xdfff]));
+		printf("[c000] = %.4hx\n", get_16(&cpu->memory[0xc000]));
+		printf("\n");
+		printf("press return to step");
+		fgetc(stdin);
+		fflush(stdout);*/
+	}
+
 	// printf("Executing %.4hx at PC = %.4hx\n", opcode, cpu->pc);
 
 	switch (opcode) {
@@ -139,6 +154,7 @@ void step(CPU *cpu) {
 		case 0x07: {
 			// RLCA
 			rlc_8(cpu, &cpu->registers.registers.a);
+			set_zero_flag(&cpu->registers, 0);
 			size = 1;
 			break;
 		}
@@ -199,6 +215,7 @@ void step(CPU *cpu) {
 		case 0x0F: {
 			// RRCA
 			rrc_8(cpu, &cpu->registers.registers.a);
+			set_zero_flag(&cpu->registers, 0);
 			size = 1;
 			break;
 		}
@@ -1553,7 +1570,7 @@ void step(CPU *cpu) {
 
 		case 0xC6: {
 			// ADD A, u8
-			uint8_t immediate = cpu->memory[cpu->pc];
+			uint8_t immediate = cpu->memory[cpu->pc + 1];
 			add_8(cpu, &cpu->registers.registers.a, immediate);
 			size = 2;
 			break;
@@ -2965,7 +2982,10 @@ void step(CPU *cpu) {
 		case 0xCE: {
 			// ADC A, u8
 			uint8_t immediate = cpu->memory[cpu->pc + 1];
+			// printf("immediate: %hhx\n", immediate);
 			adc_8(cpu, &cpu->registers.registers.a, immediate);
+			// print_registers(&cpu->registers);
+			// fgetc(stdin);
 			size = 2;
 			break;
 
@@ -3087,7 +3107,15 @@ void step(CPU *cpu) {
 		case 0xDE: {
 			// SBC A, u8
 			uint8_t immediate = cpu->memory[cpu->pc + 1];
+			#if DEBUG_SBC == 1
+			printf("immediate: %hhx\n", immediate);
+			print_registers(&cpu->registers);
+			#endif
 			sbc_8(cpu, &cpu->registers.registers.a, immediate);
+			#if DEBUG_SBC == 1
+			print_registers(&cpu->registers);
+			fgetc(stdin);
+			#endif
 			size = 2;
 			break;
 		}
@@ -3380,11 +3408,42 @@ void dec_8(CPU *cpu, uint8_t *dest) {
 }
 
 void adc_8(CPU *cpu, uint8_t *dest, uint8_t src) {
-	add_8(cpu, dest, src + get_carry_flag(&cpu->registers));
+	uint8_t old_carry = get_carry_flag(&cpu->registers);
+	uint16_t result = *dest + src + old_carry;
+	set_zero_flag(&cpu->registers, (result & 0xFF) == 0);
+	set_substraction_flag(&cpu->registers, 0);
+	set_carry_flag(&cpu->registers, result > 0xFF);
+	set_half_carry_flag(&cpu->registers, 
+		((*dest) & 0xF) + (src & 0xF) + old_carry > 0xF);
+	*dest = result & 0xFF;
 }
 
 void sbc_8(CPU *cpu, uint8_t *dest, uint8_t src) {
-	sub_8(cpu, dest, src + get_carry_flag(&cpu->registers));
+	uint8_t old_carry = get_carry_flag(&cpu->registers);
+
+	int16_t result = *dest - src - old_carry;
+
+	set_zero_flag(&cpu->registers, (*dest) == 0);
+	set_substraction_flag(&cpu->registers, 1);
+
+	set_carry_flag(&cpu->registers, result < 0x00);
+	// set_half_carry_flag(&cpu->registers,
+	// 	(((*dest) & 0xF) - (src & 0xF) - (old_carry & 0xF)) > 0xF);
+	uint16_t older_dest = *dest;
+	*dest -= old_carry;
+	if ((*dest & 0xF) > (older_dest & 0xF)) {
+		set_half_carry_flag(&cpu->registers, 1);
+	}
+
+	older_dest = *dest;
+	*dest -= src;
+
+	if ((*dest & 0xF) > (older_dest & 0xF)) {
+		set_half_carry_flag(&cpu->registers, 1);
+	}
+
+	assert(*dest == (result & 0xFF));
+	*dest = result & 0xFF;
 }
 
 void add_16(CPU *cpu, uint16_t *dest, uint16_t src) {
