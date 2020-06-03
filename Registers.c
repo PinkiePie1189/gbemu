@@ -49,13 +49,14 @@ uint8_t get_substraction_flag(Registers *regs) {
 }
 
 void print_registers(Registers *regs) {
-	printf("A = %.2hhx\n", regs->registers.a);
-	printf("B = %.2hhx\n", regs->registers.b);
-	printf("C = %.2hhx\n", regs->registers.c);
-	printf("D = %.2hhx\n", regs->registers.d);
-	printf("E = %.2hhx\n", regs->registers.e);
-	printf("H = %.2hhx\n", regs->registers.h);
-	printf("L = %.2hhx\n", regs->registers.l);
+	// printf("A = %.2hhx\n", regs->registers.a);
+	// printf("B = %.2hhx\n", regs->registers.b);
+	// printf("C = %.2hhx\n", regs->registers.c);
+	// printf("D = %.2hhx\n", regs->registers.d);
+	// printf("E = %.2hhx\n", regs->registers.e);
+	// printf("H = %.2hhx\n", regs->registers.h);
+	// printf("L = %.2hhx\n", regs->registers.l);
+	printf("Registers:\n");
 	printf("AF = %.4hx\n", regs->d_registers.af);
 	printf("BC = %.4hx\n", regs->d_registers.bc);
 	printf("DE = %.4hx\n", regs->d_registers.de);

@@ -4,15 +4,16 @@
 #include <assert.h>
 #include <stdio.h>
 #define DEBUG_SBC 0
+#define DEBUG_SP 0
 
 void start_cpu(CPU *cpu) {
-	cpu->pc = 0x0000;
+	cpu->pc = 0x0100;
 	cpu->is_halted = 0;
 	cpu->is_stopped = 0;
 	cpu->interrupts_enabled = 0;
 
 	// Simulate bios
-	cpu->registers.d_registers.af = 0x01B0;
+	cpu->registers.d_registers.af = 0x11B0;
 	cpu->registers.d_registers.bc = 0x0013;
 	cpu->registers.d_registers.de = 0x00D8;
 	cpu->registers.d_registers.hl = 0x014D;
@@ -72,6 +73,21 @@ void step(CPU *cpu) {
 	int has_jumped = 0;
 
 	uint8_t opcode = cpu->memory[cpu->pc];
+
+	// print_registers(&cpu->registers);
+	// printf("SP = %.4hx\n", cpu->sp);
+	// printf("PC = %.4hx\n", cpu->pc);
+	printf("Executing %.4hx at PC = %.4hx\n", opcode, cpu->pc);
+	printf("Stack layout:\n");
+	for (int i = 0; i < 2; i += 2) {
+		printf("%.4hx ", get_16(&cpu->memory[cpu->sp + i]));
+	}
+	printf("Register A: %hhx\n", cpu->registers.registers.a);
+	printf("Register B: %hhx\n", cpu->registers.registers.b);
+	printf("SP: %hx\n", cpu->sp);
+	printf("immediate: %hhx\n", cpu->memory[cpu->pc + 1]);
+	printf("\n");
+	fflush(stdout);
 	/*
 	uint16_t breakpoint = 0xc7fe;
 	if (cpu->pc == breakpoint || cpu->broke) {
@@ -88,18 +104,18 @@ void step(CPU *cpu) {
 	}
 	*/
 
-	if (opcode == 0xDE) {
-		cpu->broke = 1;
-		/*printf("Executing %.4hx at PC = %.4hx\n", opcode, cpu->pc);
-		printf("SP is at %.4hx and contains %.4hx\n", cpu->sp, get_16(&cpu->memory[cpu->sp]));
-		print_registers(&cpu->registers);
-		printf("[dfff] = %.4hx\n", get_16(&cpu->memory[0xdfff]));
-		printf("[c000] = %.4hx\n", get_16(&cpu->memory[0xc000]));
-		printf("\n");
-		printf("press return to step");
-		fgetc(stdin);
-		fflush(stdout);*/
-	}
+	// if (1) {
+	// 	cpu->broke = 1;
+	// 	printf("Executing %.4hx at PC = %.4hx\n", opcode, cpu->pc);
+	// 	printf("SP is at %.4hx and contains %.4hx\n", cpu->sp, get_16(&cpu->memory[cpu->sp]));
+	// 	print_registers(&cpu->registers);
+	// 	printf("[dfff] = %.4hx\n", get_16(&cpu->memory[0xdfff]));
+	// 	printf("[c000] = %.4hx\n", get_16(&cpu->memory[0xc000]));
+	// 	printf("\n");
+	// 	printf("press return to step");
+	// 	fgetc(stdin);
+	// 	fflush(stdout);
+	// }
 
 	// printf("Executing %.4hx at PC = %.4hx\n", opcode, cpu->pc);
 
@@ -497,7 +513,17 @@ void step(CPU *cpu) {
 
 		case 0x33: {
 			// INC SP
+			#if DEBUG_SP
+			printf("SP is at %.4hx and contains %.4hx\n", cpu->sp, get_16(&cpu->memory[cpu->sp]));
+			print_registers(&cpu->registers);
+			#endif
 			cpu->sp++;
+			#if DEBUG_SP
+			printf("SP is at %.4hx and contains %.4hx\n", cpu->sp, get_16(&cpu->memory[cpu->sp]));
+			print_registers(&cpu->registers);
+			printf("\n\n");
+			fgetc(stdin);
+			#endif
 			size = 1;
 			break;
 		}
@@ -3177,7 +3203,16 @@ void step(CPU *cpu) {
 		case 0xE8: {
 			// ADD SP, i8
 			uint8_t immediate = cpu->memory[cpu->pc + 1];
+			#if DEBUG_SP
+			printf("immediate: %x\n", immediate);
+			print_registers(&cpu->registers);
+			#endif
 			add_16(cpu, &cpu->sp, immediate);
+			set_zero_flag(&cpu->registers, 0);
+			#if DEBUG_SP
+			print_registers(&cpu->registers);
+			fgetc(stdin);
+			#endif
 			size = 2;
 			break;
 		}

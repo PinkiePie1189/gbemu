@@ -4,7 +4,7 @@
 #include "Registers.h"
 #include <stdint.h>
 
-#define MAX_MEMORY 0xFFFF
+#define MAX_MEMORY 0xFFFF + 1
 
 typedef struct {
 	Registers registers;
