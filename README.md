@@ -14,6 +14,6 @@ The project is at an early stage, having only most of the CPU functionality impl
 - [x] 06-ld r,r
 - [ ] 07-jr,jp,call,ret,rst
 - [ ] 08-misc instrs
-- [ ] 09-op r,r
+- [x] 09-op r,r
 - [x] 10-bit ops
-- [ ] 11-op a,(hl)
+- [x] 11-op a,(hl)

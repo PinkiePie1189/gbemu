@@ -7,17 +7,16 @@
 #define MAX_MEMORY 0xFFFF + 1
 
 typedef struct {
-	Registers registers;
-	uint16_t pc;
-	uint16_t sp;
-	uint8_t memory[MAX_MEMORY];
-	int is_halted;
-	int is_stopped;
-	int interrupts_enabled;
-	uint8_t broke;
+  Registers registers;
+  uint16_t pc;
+  uint16_t sp;
+  uint8_t memory[MAX_MEMORY];
+  int is_halted;
+  int is_stopped;
+  int interrupts_enabled;
+  uint8_t broke;
 
 } CPU;
-
 
 void start_cpu(CPU *cpu);
 void step(CPU *cpu);
@@ -39,7 +38,6 @@ void rlc_8(CPU *cpu, uint8_t *dest);
 void rrc_8(CPU *cpu, uint8_t *dest);
 void rl_8(CPU *cpu, uint8_t *dest);
 void rr_8(CPU *cpu, uint8_t *dest);
-
 
 // Logical operations that set flags
 void and_8(CPU *cpu, uint8_t *dest, uint8_t src);
@@ -65,6 +63,5 @@ void set_8(CPU *cpu, uint8_t *dest, uint8_t bit);
 
 // DAA in all his might
 void daa_8(CPU *cpu, uint8_t *dest);
-
 
 #endif // CPU_H
