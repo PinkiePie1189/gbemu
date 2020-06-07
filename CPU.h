@@ -1,8 +1,9 @@
 #ifndef CPU_H
 #define CPU_H
 
-#include "Registers.h"
 #include <stdint.h>
+
+#include "Registers.h"
 
 #define MAX_MEMORY 0xFFFF + 1
 
@@ -50,7 +51,7 @@ void pop_16(CPU *cpu, uint16_t *dest);
 void push_16(CPU *cpu, uint16_t dest);
 
 // RESET
-void rst(CPU *cpu, uint8_t dest);
+void rst_(CPU *cpu, uint8_t dest);
 
 // CB Operations
 void bit_test(CPU *cpu, uint8_t dest, uint8_t bit);
@@ -64,4 +65,4 @@ void set_8(CPU *cpu, uint8_t *dest, uint8_t bit);
 // DAA in all his might
 void daa_8(CPU *cpu, uint8_t *dest);
 
-#endif // CPU_H
+#endif  // CPU_H

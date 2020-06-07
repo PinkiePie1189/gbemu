@@ -18,4 +18,3 @@ error.o: error.c error.h
 .PHONY: clean
 clean:
 	rm -f *.o gbemu
-
