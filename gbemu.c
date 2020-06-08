@@ -10,28 +10,28 @@
 
 int main(int argc, char *argv[]) {
 #if SCRATCHPAD == 1
-  cpu_test();
-  //  Cpu *cpu = calloc(1, sizeof(Cpu));
+  //  cpu_test();
+  Cpu *cpu = calloc(1, sizeof(Cpu));
 
-  //  init_cpu(cpu);
-  //  init_instruction_lut(cpu);
+  init_cpu(cpu);
+  init_instruction_lut(cpu);
 
-  //  FILE *rom = fopen(argv[1], "rb");
+  FILE *rom = fopen(argv[1], "rb");
 
-  //  fseek(rom, 0, SEEK_END);
-  //  int rom_size = ftell(rom);
-  //  fseek(rom, 0, SEEK_SET);
-  //  fread(cpu->memory, rom_size, sizeof(uint8_t), rom);
-  //  fclose(rom);
+  fseek(rom, 0, SEEK_END);
+  int rom_size = ftell(rom);
+  fseek(rom, 0, SEEK_SET);
+  fread(cpu->memory, rom_size, sizeof(uint8_t), rom);
+  fclose(rom);
 
-  //  while (1) {
-  //    cycle(cpu);
-  //    if (cpu->memory[0xFF01]) {
-  //      printf("%c", cpu->memory[0xFF01]);
-  //      fflush(stdout);
-  //      cpu->memory[0xFF01] = 0x00;
-  //    }
-  //  }
+  while (1) {
+    cycle(cpu);
+    if (cpu->memory[0xFF01]) {
+      printf("%c", cpu->memory[0xFF01]);
+      fflush(stdout);
+      cpu->memory[0xFF01] = 0x00;
+    }
+  }
 
   return 0;
 #else

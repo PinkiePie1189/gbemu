@@ -588,7 +588,7 @@ void rl(Cpu *cpu) {
   uint8_t carry = dest >> 7;
 
   *cpu->dest8 <<= 1;
-  *cpu->dest8 |= get_flag(cpu, FLAG_Z);
+  *cpu->dest8 |= get_flag(cpu, FLAG_C);
 
   set_flag(cpu, FLAG_Z, *cpu->dest8 == 0);
   set_flag(cpu, FLAG_S, 0);
@@ -600,7 +600,7 @@ void rr(Cpu *cpu) {
   uint8_t carry = dest & 0x1;
 
   *cpu->dest8 >>= 1;
-  *cpu->dest8 |= (get_flag(cpu, FLAG_Z) << 7);
+  *cpu->dest8 |= (get_flag(cpu, FLAG_C) << 7);
 
   set_flag(cpu, FLAG_Z, *cpu->dest8 == 0);
   set_flag(cpu, FLAG_S, 0);
@@ -661,7 +661,6 @@ void srl(Cpu *cpu) {
 }
 
 void bit(Cpu *cpu) {
-  // TODO: update the opcode when calling CB handler.
   uint8_t opcode = cpu->opcode;
 
   uint8_t hi_nib = opcode >> 4;
@@ -747,7 +746,7 @@ void inc8(Cpu *cpu) {
 
   set_flag(cpu, FLAG_S, 0);
   set_flag(cpu, FLAG_Z, result == 0);
-  set_flag(cpu, FLAG_H, ((*cpu->dest8) & 0xF) > (0xF - 1));
+  set_flag(cpu, FLAG_H, (*cpu->dest8 & 0x7) == 0x7);
 
   *cpu->dest8 = result;
 }
@@ -1070,10 +1069,73 @@ void cpu_test() {
     cycle(cpu);
     if (cpu->registers.a != ((val + 1) & 0xFF)) {
       printf("nu");
+      exit(0);
     }
     if (cpu->registers.zero != (val == 0xFF)) {
       printf("nuu");
+      exit(0);
+    }
+    if (cpu->registers.half_carry != ((val & 0x7) == 0x7)) {
+      printf("REEE");
+      exit(0);
     }
     cpu->registers.pc = 0x100;
+  }
+
+  init_cpu(cpu);
+
+  // Test add
+  cpu->memory[0x100] = 0x80;
+  for (int a = 0; a <= 0xFF; a++) {
+    for (int b = 0; b <= 0xFF; b++) {
+      cpu->registers.a = a;
+      cpu->registers.b = b;
+      int sum = (a + b) & 0xFF;
+
+      cycle(cpu);
+      if (cpu->registers.a != sum) {
+        printf("Aduna prost");
+        exit(0);
+      }
+
+      if (cpu->registers.zero != (sum == 0)) {
+        printf("zero flag prost");
+        exit(0);
+      }
+      if (cpu->registers.half_carry != (((a & 0xF) + (b & 0xF)) > 0xF)) {
+        printf("half flag prost");
+        exit(0);
+      }
+
+      cpu->registers.pc = 0x100;
+    }
+  }
+  init_cpu(cpu);
+
+  // Test sub
+  cpu->memory[0x100] = 0x90;
+  for (int a = 0; a <= 0xFF; a++) {
+    for (int b = 0; b <= 0xFF; b++) {
+      cpu->registers.a = a;
+      cpu->registers.b = b;
+      int sum = (a - b) & 0xFF;
+
+      cycle(cpu);
+      if (cpu->registers.a != sum) {
+        printf("Scade prost");
+        exit(0);
+      }
+
+      if (cpu->registers.zero != (sum == 0)) {
+        printf("zero flag prost");
+        exit(0);
+      }
+      if (cpu->registers.half_carry != ((a & 0xF) < (b & 0xF))) {
+        printf("half flag prost");
+        exit(0);
+      }
+
+      cpu->registers.pc = 0x100;
+    }
   }
 }
