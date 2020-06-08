@@ -1,3 +1,5 @@
+
+
 #include "CPU.h"
 
 #include <assert.h>
@@ -66,6 +68,8 @@ void step(CPU *cpu) {
   int has_jumped = 0;
 
   uint8_t opcode = cpu->memory[cpu->pc];
+
+  printf("%01X\n", opcode);
 
   switch (opcode) {
     case 0x00: {

@@ -7,4 +7,4 @@ void nop();
 void load_16(uint8_t *dest, uint16_t src);
 uint16_t get_16(uint8_t *addr);
 
-#endif // INSTRUCTIONS_H
+#endif  // INSTRUCTIONS_H

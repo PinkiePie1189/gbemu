@@ -51,7 +51,7 @@ void pop_16(CPU *cpu, uint16_t *dest);
 void push_16(CPU *cpu, uint16_t dest);
 
 // RESET
-void rst_(CPU *cpu, uint8_t dest);
+void rst(CPU *cpu, uint8_t dest);
 
 // CB Operations
 void bit_test(CPU *cpu, uint8_t dest, uint8_t bit);

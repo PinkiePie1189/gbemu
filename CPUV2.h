@@ -63,7 +63,6 @@ typedef struct CPU_T {
   Registers registers;
   uint8_t memory[0x10000];
 
-  // Testing stuff
   Instruction instruction_lut[0x100];
   Instruction instruction_cb_lut[0x10];
 
@@ -79,11 +78,17 @@ typedef struct CPU_T {
   uint8_t *fetch_reg[8];
   uint16_t *fetch_dreg[8];
 
-  uint8_t wait_cycles
+  uint8_t int_enabled;
+  uint8_t running;
+
+  uint8_t wait_cycles;
+
 } Cpu;
 
 void init_cpu(Cpu *cpu);
 void init_debug_cpu(Cpu *cpu);
+
+char *get_register_name(uint8_t index);
 
 uint8_t fetch8(Cpu *cpu);
 uint16_t fetch16(Cpu *cpu);
@@ -96,11 +101,18 @@ void purple_fetch(Cpu *cpu);
 void fetch_dark_green(Cpu *cpu);
 void fetch_orange(Cpu *cpu);
 void fetch_dark_purple(Cpu *cpu);
+void blue_fetch(Cpu *cpu);
 
 void cycle(Cpu *cpu);
 void init_instruction_lut(Cpu *cpu);
 uint8_t flag_condition(Cpu *cpu);
 uint8_t flag_mask(Cpu *cpu);
+
+char *get_register_name(uint8_t index);
+uint8_t *get_ind_1(Cpu *cpu, uint8_t offset);
+char *get_dreg_name(uint8_t offset);
+
+void cpu_test();
 
 #define INSTR(op, mnem, sz, cy, ft, ex)           \
   {                                               \
@@ -113,12 +125,32 @@ uint8_t flag_mask(Cpu *cpu);
     ins->execute = ex;                            \
   }
 
-void nop(Cpu *cpu);
+#define CBINSTR(op, mnem, sz, cy, ft, ex)            \
+  {                                                  \
+    Instruction *ins = &cpu->instruction_cb_lut[op]; \
+    ins->opcode = op;                                \
+    strcpy(ins->mnemonic, mnem);                     \
+    ins->size = sz;                                  \
+    ins->cycles = cy;                                \
+    ins->fetch = ft;                                 \
+    ins->execute = ex;                               \
+  }
+
+#define pop 0
+
+#if pop == 0
+#define DEBUG(format, ...) printf(format, __VA_ARGS__);
+#else
+#define DEBUG(format, ...)
+#endif
+
+void nop8(Cpu *cpu);
 void ld8(Cpu *cpu);
 void ld16(Cpu *cpu);
 void dec16(Cpu *cpu);
 void call(Cpu *cpu);
 void load16(uint8_t *dest, uint16_t val);
+uint16_t get16(uint8_t *src);
 void ret(Cpu *cpu);
 void rst(Cpu *cpu);
 void push16(Cpu *cpu);
