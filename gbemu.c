@@ -1,4 +1,4 @@
-#define SCRATCHPAD 1
+#define SCRATCHPAD 0
 #if SCRATCHPAD == 1
 #include "CPUV2.h"
 #else

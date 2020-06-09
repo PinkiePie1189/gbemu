@@ -1,4 +1,4 @@
-#include <CPUV2.h>
+#include "CPUV2.h"
 
 uint16_t fetch16(Cpu *cpu) {
   uint16_t result = cpu->memory[cpu->registers.pc] |
@@ -463,8 +463,8 @@ void cp8(Cpu *cpu) {
 }
 
 void add16(Cpu *cpu) {
-  uint16_t dest = *cpu->dest8;
-  uint16_t src = cpu->src8;
+  uint16_t dest = *cpu->dest16;
+  uint16_t src = cpu->src16;
 
   uint16_t result = dest + src;
 
@@ -685,6 +685,7 @@ void res(Cpu *cpu) {
 
   *cpu->dest8 &= bitm;
 }
+
 void set(Cpu *cpu) {
   uint8_t opcode = cpu->opcode;
 
@@ -695,13 +696,6 @@ void set(Cpu *cpu) {
   bitm = 1 << bitm;
 
   *cpu->dest8 |= bitm;
-}
-
-void blue_fetch_cb(Cpu *cpu) {
-  uint8_t opcode = cpu->opcode;
-  uint8_t lo_nib = opcode & 0xF;
-
-  cpu->dest8 = cpu->fetch_reg[lo_nib & 0x7];
 }
 
 void rlca(Cpu *cpu) {
@@ -746,7 +740,7 @@ void inc8(Cpu *cpu) {
 
   set_flag(cpu, FLAG_S, 0);
   set_flag(cpu, FLAG_Z, result == 0);
-  set_flag(cpu, FLAG_H, (*cpu->dest8 & 0x7) == 0x7);
+  set_flag(cpu, FLAG_H, (*cpu->dest8 & 0xF) == 0xF);
 
   *cpu->dest8 = result;
 }
@@ -784,10 +778,10 @@ void cpl(Cpu *cpu) {
 }
 
 void ccf(Cpu *cpu) {
-  set_flag(cpu, FLAG_S, 1);
-  set_flag(cpu, FLAG_H, 1);
+  set_flag(cpu, FLAG_S, 0);
+  set_flag(cpu, FLAG_H, 0);
 
-  cpu->registers.c ^= 1;
+  set_flag(cpu, FLAG_C, get_flag(cpu, FLAG_C) ^ 1);
 }
 
 // God forgive me for what I am about to do.

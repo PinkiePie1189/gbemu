@@ -136,7 +136,7 @@ void cpu_test();
     ins->execute = ex;                               \
   }
 
-#define pop 0
+#define pop 1
 
 #if pop == 0
 #define DEBUG(format, ...) printf(format, __VA_ARGS__);

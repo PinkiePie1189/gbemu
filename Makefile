@@ -20,6 +20,9 @@ cpu.o: CPU.c CPU.h Registers.h Instructions.h
 
 	$(CC) $(CFLAGS) -c $< -o $@
 
+cpu2.o: CPUV2.c CPUV2.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
 registers.o: Registers.c Registers.h
 
 	$(CC) $(CFLAGS) -c $< -o $@

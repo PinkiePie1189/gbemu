@@ -1,5 +1,3 @@
-
-
 #include "CPU.h"
 
 #include <assert.h>
@@ -69,7 +67,7 @@ void step(CPU *cpu) {
 
   uint8_t opcode = cpu->memory[cpu->pc];
 
-  printf("%01X\n", opcode);
+  // printf("%02X\n", opcode);
 
   switch (opcode) {
     case 0x00: {
@@ -248,11 +246,11 @@ void step(CPU *cpu) {
     }
 
     case 0x18: {
+      // JR i8
       has_jumped = 1;
       int8_t immediate = (int8_t)cpu->memory[cpu->pc + 1];
       cpu->pc = (int32_t)cpu->pc + immediate + 2;
       size = 2;
-
       break;
     }
 
@@ -3162,6 +3160,8 @@ void step(CPU *cpu) {
     case 0xF1: {
       // POP AF
       pop_16(cpu, &cpu->registers.d_registers.af);
+      // Make sure to zero-out the last 4 bits?
+      cpu->registers.registers.f &= 0xF0;
       size = 1;
       break;
     }
@@ -3207,6 +3207,9 @@ void step(CPU *cpu) {
       // LD HL, SP + i8
       fprintf(stderr, "This instruction might be unstable %x\n", opcode);
       int8_t immediate = (int8_t)cpu->memory[cpu->pc];
+      set_zero_flag(&cpu->registers, 0);
+      set_substraction_flag(&cpu->registers, 0);
+      // TODO set half-carry and carry accordingly
       cpu->registers.d_registers.hl = (int16_t)cpu->sp + immediate;
       size = 2;
       break;
@@ -3438,7 +3441,7 @@ void push_16(CPU *cpu, uint16_t dest) {
   load_16(&cpu->memory[cpu->sp], dest);
 }
 
-void rst_(CPU *cpu, uint8_t dest) {
+void rst(CPU *cpu, uint8_t dest) {
   push_16(cpu, cpu->pc + 1);
   cpu->pc = dest;
 }
