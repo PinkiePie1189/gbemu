@@ -25,7 +25,6 @@ void start_cpu(CPU *cpu) {
   // Setup memory
   memset(cpu->memory, 0, sizeof(cpu->memory));
 
-
   cpu->memory[0xFF04] = 0xAB;
   cpu->memory[0xFF10] = 0x80;
   cpu->memory[0xFF11] = 0xBF;
@@ -81,7 +80,6 @@ void start_cpu(CPU *cpu) {
 }
 
 void step(CPU *cpu) {
-
   // Current opcode to execute
   uint8_t opcode = fetch_8(cpu);
 
@@ -188,7 +186,7 @@ void step(CPU *cpu) {
     case 0x10: {
       // STOP 00
       cpu->is_stopped = 1;
-      fetch_8(cpu); // nullbyte
+      fetch_8(cpu);  // nullbyte
       break;
     }
 
@@ -237,7 +235,7 @@ void step(CPU *cpu) {
 
     case 0x18: {
       // JR i8
-      jr(cpu, (int8_t) fetch_8(cpu));
+      jr(cpu, (int8_t)fetch_8(cpu));
       break;
     }
 
@@ -286,7 +284,7 @@ void step(CPU *cpu) {
 
     case 0x20: {
       // JR NZ, i8
-      int8_t offset = (int8_t) fetch_8(cpu);
+      int8_t offset = (int8_t)fetch_8(cpu);
       if (!get_zero_flag(&cpu->registers)) {
         jr(cpu, offset);
       }
@@ -337,7 +335,7 @@ void step(CPU *cpu) {
 
     case 0x28: {
       // JR Z, i8
-      int8_t offset = (int8_t) fetch_8(cpu);
+      int8_t offset = (int8_t)fetch_8(cpu);
       if (get_zero_flag(&cpu->registers)) {
         jr(cpu, offset);
       }
@@ -390,7 +388,7 @@ void step(CPU *cpu) {
 
     case 0x30: {
       // JR NC, i8
-      int8_t offset = (int8_t) fetch_8(cpu);
+      int8_t offset = (int8_t)fetch_8(cpu);
       if (!get_carry_flag(&cpu->registers)) {
         jr(cpu, offset);
       }
@@ -443,7 +441,7 @@ void step(CPU *cpu) {
 
     case 0x38: {
       // JR C, i8
-      int8_t offset = (int8_t) fetch_8(cpu);
+      int8_t offset = (int8_t)fetch_8(cpu);
       if (get_carry_flag(&cpu->registers)) {
         jr(cpu, offset);
       }
@@ -1055,7 +1053,7 @@ void step(CPU *cpu) {
     case 0x9E: {
       // SBC A, (HL)
       sbc_8(cpu, &cpu->registers.a, cpu->memory[cpu->registers.hl]);
-      break;    
+      break;
     }
 
     case 0x9F: {
@@ -2782,8 +2780,20 @@ void step(CPU *cpu) {
 
     case 0xE8: {
       // ADD SP, i8
-      add_16(cpu, &cpu->sp, fetch_8(cpu));
+      //      add_16(cpu, &cpu->sp, fetch_8(cpu));
+      uint16_t old_sp = cpu->sp;
+      int8_t imm = fetch_8(cpu);
+
+      int result = old_sp + imm;
+
       set_zero_flag(&cpu->registers, 0);
+      set_substraction_flag(&cpu->registers, 0);
+      set_half_carry_flag(&cpu->registers,
+                          ((old_sp ^ imm ^ (result & 0xFFFF)) & 0x10) == 0x10);
+      set_carry_flag(&cpu->registers,
+                     ((old_sp ^ imm ^ (result & 0xFFFF)) & 0x100) == 0x100);
+
+      cpu->sp = result & 0xFFFF;
       break;
     }
 
@@ -2856,16 +2866,20 @@ void step(CPU *cpu) {
     }
 
     case 0xF8: {
-      // LD HL, SP + i8
-      fprintf(stderr, "This instruction might be unstable %x\n", opcode);
-      fflush(stderr);
+      //       LD HL, SP + i8
       uint16_t temp = cpu->sp;
-      int8_t immediate = (int8_t) fetch_8(cpu);
-      add_16(cpu, &temp, (uint16_t) immediate);
+      int8_t imm = (int8_t)fetch_8(cpu);
+
+      int result = temp + imm;
+
       set_zero_flag(&cpu->registers, 0);
       set_substraction_flag(&cpu->registers, 0);
-      // TODO set half-carry and carry accordingly
-      cpu->registers.hl = cpu->sp + immediate;
+      set_half_carry_flag(&cpu->registers,
+                          ((temp ^ imm ^ (result & 0xFFFF)) & 0x10) == 0x10);
+      set_carry_flag(&cpu->registers,
+                     ((temp ^ imm ^ (result & 0xFFFF)) & 0x100) == 0x100);
+      cpu->registers.hl = result & 0xFFFF;
+
       break;
     }
 
@@ -2907,9 +2921,7 @@ void step(CPU *cpu) {
   }
 }
 
-uint8_t fetch_8(CPU *cpu) {
-  return cpu->memory[cpu->pc++];
-}
+uint8_t fetch_8(CPU *cpu) { return cpu->memory[cpu->pc++]; }
 
 uint16_t fetch_16(CPU *cpu) {
   uint16_t result = get_16(&cpu->memory[cpu->pc]);
@@ -3100,22 +3112,16 @@ void push_16(CPU *cpu, uint16_t dest) {
   load_16(&cpu->memory[cpu->sp], dest);
 }
 
-void jr(CPU *cpu, int8_t offset) {
-  cpu->pc = (int16_t) cpu->pc + offset;
-}
+void jr(CPU *cpu, int8_t offset) { cpu->pc = (int16_t)cpu->pc + offset; }
 
-void jp(CPU *cpu, uint16_t address) {
-  cpu->pc = address;
-}
+void jp(CPU *cpu, uint16_t address) { cpu->pc = address; }
 
 void call(CPU *cpu, uint16_t address) {
   push_16(cpu, cpu->pc);
   jp(cpu, address);
 }
 
-void rst(CPU *cpu, uint8_t dest) {
-  call(cpu, dest);
-}
+void rst(CPU *cpu, uint8_t dest) { call(cpu, dest); }
 
 void bit_test(CPU *cpu, uint8_t dest, uint8_t bit) {
   set_zero_flag(&cpu->registers, !(dest & (1u << bit)));
