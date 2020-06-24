@@ -56,6 +56,7 @@ int main(int argc, char *argv[]) {
 
   fseek(rom, 0, SEEK_END);
   int rom_size = ftell(rom);
+  // printf("%d", rom_size);
   fseek(rom, 0, SEEK_SET);
   fread(cpu.memory, rom_size, sizeof(uint8_t), rom);
   fclose(rom);

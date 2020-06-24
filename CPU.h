@@ -22,6 +22,14 @@ typedef struct {
 void start_cpu(CPU *cpu);
 void step(CPU *cpu);
 
+// Fetches
+uint8_t fetch_8(CPU *cpu);
+uint16_t fetch_16(CPU *cpu);
+
+// Writes
+void write_8(CPU *cpu, uint16_t address, uint8_t value);
+void write_16(CPU *cpu, uint16_t address, uint16_t value);
+
 // Arithmetic operations that set flags
 void add_8(CPU *cpu, uint8_t *dest, uint8_t src);
 void inc_8(CPU *cpu, uint8_t *dest);
@@ -49,6 +57,12 @@ void cp_8(CPU *cpu, uint8_t *dest, uint8_t src);
 // Stack operations
 void pop_16(CPU *cpu, uint16_t *dest);
 void push_16(CPU *cpu, uint16_t dest);
+
+// Jumps and calls
+void jr(CPU *cpu, int8_t offset);
+void jp(CPU *cpu, uint16_t address);
+
+void call(CPU *cpu, uint16_t address);
 
 // RESET
 void rst(CPU *cpu, uint8_t dest);

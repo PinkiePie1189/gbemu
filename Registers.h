@@ -9,7 +9,7 @@ typedef union {
     uint16_t bc;
     uint16_t de;
     uint16_t hl;
-  } d_registers;
+  };
   struct {
     uint8_t f;
     uint8_t a;
@@ -19,7 +19,7 @@ typedef union {
     uint8_t d;
     uint8_t l;
     uint8_t h;
-  } registers;
+  };
 } Registers;
 
 // Flag manipulation
