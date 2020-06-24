@@ -8,7 +8,7 @@ Then run the emulator using `./gbemu bios_path rom_path`.
 The project is at an early stage, having only most of the CPU functionality implemented, which still has bugs. [These](https://github.com/retrio/gb-test-roms/tree/master/cpu_instrs) tests are used in order to check the system's functionality. So far the CPU's state looks as follows, with a tick indicating a passing test:
 - [x] 01-special
 - [ ] 02-interrupts
-- [ ] 03-op sp,hl
+- [x] 03-op sp,hl
 - [x] 04-op r,imm
 - [x] 05-op rp
 - [x] 06-ld r,r
