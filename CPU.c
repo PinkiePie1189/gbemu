@@ -8,7 +8,59 @@
 #define DEBUG_SBC 0
 #define DEBUG_SP 0
 
+const uint8_t op_cycles[256] = {
+    1, 3, 2, 2, 1, 1, 2, 1, 5, 2, 2, 2, 1, 1, 2, 1, 1, 3, 2, 2, 1, 1, 2, 1,
+    3, 2, 2, 2, 1, 1, 2, 1, 2, 3, 2, 2, 1, 1, 2, 1, 2, 2, 2, 2, 1, 1, 2, 1,
+    2, 3, 2, 2, 3, 3, 3, 1, 2, 2, 2, 2, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1,
+    1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1,
+    1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 2, 2, 2, 2, 2, 1, 2,
+    1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1,
+    1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1,
+    1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1,
+    2, 3, 3, 4, 3, 4, 2, 4, 2, 4, 3, 0, 3, 6, 2, 4, 2, 3, 3, 0, 3, 4, 2, 4,
+    2, 4, 3, 0, 3, 0, 2, 4, 3, 3, 2, 0, 0, 4, 2, 4, 4, 1, 4, 0, 0, 0, 2, 4,
+    3, 3, 2, 1, 0, 4, 2, 4, 3, 2, 4, 1, 0, 0, 2, 4};
+
+const uint8_t op_cycles_br[256] = {
+    1, 3, 2, 2, 1, 1, 2, 1, 5, 2, 2, 2, 1, 1, 2, 1, 1, 3, 2, 2, 1, 1, 2, 1,
+    3, 2, 2, 2, 1, 1, 2, 1, 3, 3, 2, 2, 1, 1, 2, 1, 3, 2, 2, 2, 1, 1, 2, 1,
+    3, 3, 2, 2, 3, 3, 3, 1, 3, 2, 2, 2, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1,
+    1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1,
+    1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 2, 2, 2, 2, 2, 1, 2,
+    1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1,
+    1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1,
+    1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1,
+    5, 3, 4, 4, 6, 4, 2, 4, 5, 4, 4, 0, 6, 6, 2, 4, 5, 3, 4, 0, 6, 4, 2, 4,
+    5, 4, 4, 0, 6, 0, 2, 4, 3, 3, 2, 0, 0, 4, 2, 4, 4, 1, 4, 0, 0, 0, 2, 4,
+    3, 3, 2, 1, 0, 4, 2, 4, 3, 2, 4, 1, 0, 0, 2, 4};
+
+const uint8_t op_cycles_cb[256] = {
+    2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2,
+    2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2,
+    2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 3, 2,
+    2, 2, 2, 2, 2, 2, 3, 2, 2, 2, 2, 2, 2, 2, 3, 2, 2, 2, 2, 2, 2, 2, 3, 2,
+    2, 2, 2, 2, 2, 2, 3, 2, 2, 2, 2, 2, 2, 2, 3, 2, 2, 2, 2, 2, 2, 2, 3, 2,
+    2, 2, 2, 2, 2, 2, 3, 2, 2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2,
+    2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2,
+    2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2,
+    2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2,
+    2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2,
+    2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2};
+
+enum INTERRUPT_BIT {
+  INT_VBLANK = 1 << 0,
+  INT_LCD_STAT = 1 << 1,
+  INT_TIMER = 1 << 2,
+  INT_SERIAL = 1 << 3,
+  INT_JOYPAD = 1 << 4,
+};
+
 void start_cpu(CPU *cpu) {
+  // Test stuff
+  cpu->frequency = 8192 * 2;
+  cpu->test = 0;
+  //-----------
+
   cpu->pc = 0x0100;
   cpu->is_halted = 0;
   cpu->is_stopped = 0;
@@ -80,8 +132,40 @@ void start_cpu(CPU *cpu) {
 }
 
 void step(CPU *cpu) {
+  // Timers?
+
+  if (cpu->has_jumped) {
+    cpu->elapsed_cycles += op_cycles_br[cpu->opcode];
+  } else {
+    cpu->elapsed_cycles += op_cycles[cpu->opcode];
+  }
+
+  // Testing test timer
+
+  if (cpu->elapsed_cycles > cpu->frequency / 50) {
+    cpu->elapsed_cycles = 0;
+    cpu->test++;
+  }
+  printf("timer: %lu    cycles: %lu\n", cpu->test, cpu->elapsed_cycles);
+
+  // Check interrupts
+  if (cpu->interrupts_enabled) {
+    uint16_t int_vector = 0x40;
+    for (uint8_t mask = 1; mask <= 1 << 4; mask <<= 1) {
+      if ((cpu->memory[0xFF0F] & mask) && (cpu->memory[0xFFFF] & mask)) {
+        cpu->interrupts_enabled = 0;
+        cpu->memory[0xFF0F] &= ~mask;
+        call(cpu, int_vector);
+        break;
+      }
+      int_vector += 0x8;
+    }
+  }
+
   // Current opcode to execute
-  uint8_t opcode = fetch_8(cpu);
+
+  cpu->opcode = fetch_8(cpu);
+  uint8_t opcode = cpu->opcode;
 
   // printf("Executing %.2hhx at PC: %.2hhx\n", opcode, cpu->pc);
   switch (opcode) {
@@ -286,6 +370,7 @@ void step(CPU *cpu) {
       // JR NZ, i8
       int8_t offset = (int8_t)fetch_8(cpu);
       if (!get_zero_flag(&cpu->registers)) {
+        cpu->has_jumped = 1;
         jr(cpu, offset);
       }
       break;
@@ -337,6 +422,7 @@ void step(CPU *cpu) {
       // JR Z, i8
       int8_t offset = (int8_t)fetch_8(cpu);
       if (get_zero_flag(&cpu->registers)) {
+        cpu->has_jumped = 1;
         jr(cpu, offset);
       }
       break;
@@ -390,6 +476,7 @@ void step(CPU *cpu) {
       // JR NC, i8
       int8_t offset = (int8_t)fetch_8(cpu);
       if (!get_carry_flag(&cpu->registers)) {
+        cpu->has_jumped = 1;
         jr(cpu, offset);
       }
       break;
@@ -443,6 +530,7 @@ void step(CPU *cpu) {
       // JR C, i8
       int8_t offset = (int8_t)fetch_8(cpu);
       if (get_carry_flag(&cpu->registers)) {
+        cpu->has_jumped = 1;
         jr(cpu, offset);
       }
       break;
@@ -1038,11 +1126,10 @@ void step(CPU *cpu) {
       break;
     }
 
-    case 0x9C: {
+    case 0x9C:
       // SBC A, H
       sbc_8(cpu, &cpu->registers.a, cpu->registers.h);
       break;
-    }
 
     case 0x9D: {
       // SBC A, L
@@ -1257,6 +1344,7 @@ void step(CPU *cpu) {
     case 0xC0: {
       // RET NZ
       if (!get_zero_flag(&cpu->registers)) {
+        cpu->has_jumped = 1;
         pop_16(cpu, &cpu->pc);
       }
       break;
@@ -1272,6 +1360,7 @@ void step(CPU *cpu) {
       // JP NZ, u16
       uint16_t address = fetch_16(cpu);
       if (!get_zero_flag(&cpu->registers)) {
+        cpu->has_jumped = 1;
         jp(cpu, address);
       }
       break;
@@ -1287,6 +1376,7 @@ void step(CPU *cpu) {
       // CALL NZ, u16
       uint16_t address = fetch_16(cpu);
       if (!get_zero_flag(&cpu->registers)) {
+        cpu->has_jumped = 1;
         call(cpu, address);
       }
       break;
@@ -1313,6 +1403,7 @@ void step(CPU *cpu) {
     case 0xC8: {
       // RET Z
       if (get_zero_flag(&cpu->registers)) {
+        cpu->has_jumped = 1;
         pop_16(cpu, &cpu->pc);
       }
       break;
@@ -1328,6 +1419,7 @@ void step(CPU *cpu) {
       // JP Z, u16
       uint16_t address = fetch_16(cpu);
       if (get_zero_flag(&cpu->registers)) {
+        cpu->has_jumped = 1;
         jp(cpu, address);
       }
       break;
@@ -2624,6 +2716,7 @@ void step(CPU *cpu) {
       // CALL Z, u16
       uint16_t address = fetch_16(cpu);
       if (get_zero_flag(&cpu->registers)) {
+        cpu->has_jumped = 1;
         call(cpu, address);
       }
       break;
@@ -2650,6 +2743,7 @@ void step(CPU *cpu) {
     case 0xD0: {
       // RET NC
       if (!get_carry_flag(&cpu->registers)) {
+        cpu->has_jumped = 1;
         pop_16(cpu, &cpu->pc);
       }
       break;
@@ -2665,6 +2759,7 @@ void step(CPU *cpu) {
       // JP NC, u16
       uint16_t address = fetch_16(cpu);
       if (!get_carry_flag(&cpu->registers)) {
+        cpu->has_jumped = 1;
         jp(cpu, address);
       }
       break;
@@ -2674,6 +2769,7 @@ void step(CPU *cpu) {
       // CALL NC, u16
       uint16_t address = fetch_16(cpu);
       if (!get_carry_flag(&cpu->registers)) {
+        cpu->has_jumped = 1;
         call(cpu, address);
       }
       break;
@@ -2700,6 +2796,7 @@ void step(CPU *cpu) {
     case 0xD8: {
       // RET C
       if (get_carry_flag(&cpu->registers)) {
+        cpu->has_jumped = 1;
         pop_16(cpu, &cpu->pc);
       }
       break;
@@ -2716,6 +2813,7 @@ void step(CPU *cpu) {
       // JP C, u16
       uint16_t address = fetch_16(cpu);
       if (get_carry_flag(&cpu->registers)) {
+        cpu->has_jumped = 1;
         jp(cpu, address);
       }
       break;
@@ -2725,6 +2823,7 @@ void step(CPU *cpu) {
       // CALL C, u16
       uint16_t address = fetch_16(cpu);
       if (get_carry_flag(&cpu->registers)) {
+        cpu->has_jumped = 1;
         call(cpu, address);
       }
       break;
