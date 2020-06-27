@@ -8,7 +8,7 @@
 #define DEBUG_SBC 0
 #define DEBUG_SP 0
 
-const uint8_t op_cycles[256] = {
+static const uint8_t op_cycles[256] = {
     1, 3, 2, 2, 1, 1, 2, 1, 5, 2, 2, 2, 1, 1, 2, 1, 1, 3, 2, 2, 1, 1, 2, 1,
     3, 2, 2, 2, 1, 1, 2, 1, 2, 3, 2, 2, 1, 1, 2, 1, 2, 2, 2, 2, 1, 1, 2, 1,
     2, 3, 2, 2, 3, 3, 3, 1, 2, 2, 2, 2, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1,
@@ -21,7 +21,7 @@ const uint8_t op_cycles[256] = {
     2, 4, 3, 0, 3, 0, 2, 4, 3, 3, 2, 0, 0, 4, 2, 4, 4, 1, 4, 0, 0, 0, 2, 4,
     3, 3, 2, 1, 0, 4, 2, 4, 3, 2, 4, 1, 0, 0, 2, 4};
 
-const uint8_t op_cycles_br[256] = {
+static const uint8_t op_cycles_br[256] = {
     1, 3, 2, 2, 1, 1, 2, 1, 5, 2, 2, 2, 1, 1, 2, 1, 1, 3, 2, 2, 1, 1, 2, 1,
     3, 2, 2, 2, 1, 1, 2, 1, 3, 3, 2, 2, 1, 1, 2, 1, 3, 2, 2, 2, 1, 1, 2, 1,
     3, 3, 2, 2, 3, 3, 3, 1, 3, 2, 2, 2, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1,
@@ -34,7 +34,7 @@ const uint8_t op_cycles_br[256] = {
     5, 4, 4, 0, 6, 0, 2, 4, 3, 3, 2, 0, 0, 4, 2, 4, 4, 1, 4, 0, 0, 0, 2, 4,
     3, 3, 2, 1, 0, 4, 2, 4, 3, 2, 4, 1, 0, 0, 2, 4};
 
-const uint8_t op_cycles_cb[256] = {
+static const uint8_t op_cycles_cb[256] = {
     2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2,
     2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2,
     2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 3, 2,
@@ -47,19 +47,25 @@ const uint8_t op_cycles_cb[256] = {
     2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2,
     2, 2, 2, 2, 2, 2, 4, 2, 2, 2, 2, 2, 2, 2, 4, 2};
 
-enum INTERRUPT_BIT {
-  INT_VBLANK = 1 << 0,
-  INT_LCD_STAT = 1 << 1,
-  INT_TIMER = 1 << 2,
-  INT_SERIAL = 1 << 3,
-  INT_JOYPAD = 1 << 4,
+// freq: 1048576
+//
+static const uint64_t timer_dividers[] = {
+    1048576 / 1024 / 4,
+    1048576 / 65536 / 4,
+    1048576 / 16384 / 4,
+    1048576 / 4096 / 4,
 };
 
 void start_cpu(CPU *cpu) {
-  // Test stuff
-  cpu->frequency = 8192 * 2;
-  cpu->test = 0;
-  //-----------
+  memset(cpu, (uint8_t)NULL, sizeof(*cpu));
+  memset(cpu, (uint8_t)NULL, sizeof(CPU));
+  memset(cpu, (uint8_t)NULL, sizeof(typeof(*cpu)));
+
+  CPU test[2];
+  memset(cpu, (uint8_t)NULL, (&test[1] - &test[0]) * sizeof(typeof(test[0])));
+
+  cpu->frequency = 1048576;
+  cpu->instr_per_frame = 166666;
 
   cpu->pc = 0x0100;
   cpu->is_halted = 0;
@@ -73,6 +79,10 @@ void start_cpu(CPU *cpu) {
   cpu->registers.hl = 0x014D;
 
   cpu->sp = 0xFFFE;
+
+  // Initialise timers
+  cpu->divider.enabled = 1;
+  cpu->divider.cycles_per_tick = 4096;
 
   // Setup memory
   memset(cpu->memory, 0, sizeof(cpu->memory));
@@ -97,58 +107,37 @@ void start_cpu(CPU *cpu) {
   cpu->memory[0xFF47] = 0xFC;
   cpu->memory[0xFF48] = 0xFF;
   cpu->memory[0xFF49] = 0xFF;
-  // cpu->memory[0xFF05] = 0x00;
-  // cpu->memory[0xFF06] = 0x00;
-  // cpu->memory[0xFF07] = 0x00;
-  // cpu->memory[0xFF10] = 0x80;
-  // cpu->memory[0xFF11] = 0xBF;
-  // cpu->memory[0xFF12] = 0xF3;
-  // cpu->memory[0xFF14] = 0xBF;
-  // cpu->memory[0xFF16] = 0x3F;
-  // cpu->memory[0xFF17] = 0x00;
-  // cpu->memory[0xFF19] = 0xBF;
-  // cpu->memory[0xFF1A] = 0x7F;
-  // cpu->memory[0xFF1B] = 0xFF;
-  // cpu->memory[0xFF1C] = 0x9F;
-  // cpu->memory[0xFF1E] = 0xBF;
-  // cpu->memory[0xFF21] = 0x00;
-  // cpu->memory[0xFF22] = 0x00;
-  // cpu->memory[0xFF23] = 0xBF;
-  // cpu->memory[0xFF24] = 0x77;
-  // cpu->memory[0xFF25] = 0xF3;
-  // cpu->memory[0xFF26] = 0xF1;
-  // cpu->memory[0xFF40] = 0x91;
-  // cpu->memory[0xFF42] = 0x00;
-  // cpu->memory[0xFF43] = 0x00;
-  // cpu->memory[0xFF45] = 0x00;
-  // cpu->memory[0xFF47] = 0xFC;
-  // cpu->memory[0xFF48] = 0xFF;
-  // cpu->memory[0xFF49] = 0xFF;
-  // cpu->memory[0xFF4A] = 0x00;
-  // cpu->memory[0xFF4B] = 0x00;
-  // cpu->memory[0xFFFF] = 0x00;
-
-  cpu->broke = 0;
 }
 
 void step(CPU *cpu) {
-  // Timers?
-
   if (cpu->has_jumped) {
     cpu->elapsed_cycles += op_cycles_br[cpu->opcode];
+    timer_tick(&cpu->divider, op_cycles_br[cpu->opcode]);
+    timer_tick(&cpu->counter, op_cycles_br[cpu->opcode]);
   } else {
     cpu->elapsed_cycles += op_cycles[cpu->opcode];
+    timer_tick(&cpu->divider, op_cycles[cpu->opcode]);
+    timer_tick(&cpu->counter, op_cycles[cpu->opcode]);
   }
+  cpu->has_jumped = 0;
 
-  // Testing test timer
+  // Divider register
 
-  if (cpu->elapsed_cycles > cpu->frequency / 50) {
-    cpu->elapsed_cycles = 0;
-    cpu->test++;
+  cpu->memory[0xFF04] = get_timer_value(&cpu->divider);
+  cpu->counter.enabled = (cpu->memory[0xFF07] & 0b100) > 0;
+  set_timer_tick(&cpu->counter, timer_dividers[cpu->memory[0xFF07] & 0b11]);
+
+  if (timer_overflowed(&cpu->counter)) {
+    uint8_t mask = 1 << 2;
+    cpu->memory[0xFF0F] |= mask;
+
+    cpu->counter.value = cpu->memory[0xFF06];
   }
-  printf("timer: %lu    cycles: %lu\n", cpu->test, cpu->elapsed_cycles);
 
   // Check interrupts
+  if (cpu->memory[0xFF0F] != 0) {
+    cpu->is_halted = 0;
+  }
   if (cpu->interrupts_enabled) {
     uint16_t int_vector = 0x40;
     for (uint8_t mask = 1; mask <= 1 << 4; mask <<= 1) {
@@ -163,11 +152,13 @@ void step(CPU *cpu) {
   }
 
   // Current opcode to execute
+  if (cpu->is_halted) {
+    return;
+  }
 
   cpu->opcode = fetch_8(cpu);
   uint8_t opcode = cpu->opcode;
 
-  // printf("Executing %.2hhx at PC: %.2hhx\n", opcode, cpu->pc);
   switch (opcode) {
     case 0x00: {
       // NOP
@@ -1126,10 +1117,11 @@ void step(CPU *cpu) {
       break;
     }
 
-    case 0x9C:
+    case 0x9C: {
       // SBC A, H
       sbc_8(cpu, &cpu->registers.a, cpu->registers.h);
       break;
+    }
 
     case 0x9D: {
       // SBC A, L
@@ -1428,7 +1420,10 @@ void step(CPU *cpu) {
     case 0xCB: {
       // PREFIX CB
       uint8_t immediate = fetch_8(cpu);
+      cpu->elapsed_cycles += op_cycles_cb[immediate];
 
+      timer_tick(&cpu->counter, op_cycles_cb[immediate]);
+      timer_tick(&cpu->divider, op_cycles_cb[immediate]);
       switch (immediate) {
         case 0x00: {
           rlc_8(cpu, &cpu->registers.b);
@@ -2922,6 +2917,7 @@ void step(CPU *cpu) {
 
     case 0xF0: {
       // LD A, (FF00 + u8)
+
       cpu->registers.a = cpu->memory[0xFF00 + fetch_8(cpu)];
       break;
     }

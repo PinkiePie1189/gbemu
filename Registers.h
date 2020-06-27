@@ -21,6 +21,19 @@ typedef union {
     uint8_t h;
   };
 } Registers;
+typedef struct {
+  uint64_t cpu_frequency;
+  uint64_t cycles;
+  uint64_t cycles_per_tick;
+  uint8_t value;
+  uint8_t overflowed;
+  uint8_t enabled;
+} Timer;
+
+void timer_tick(Timer *timer, uint64_t cycles);
+void set_timer_tick(Timer *timer, uint64_t ticks);
+uint8_t timer_overflowed(Timer *timer);
+uint8_t get_timer_value(Timer *timer);
 
 // Flag manipulation
 void set_carry_flag(Registers *regs, uint8_t value);

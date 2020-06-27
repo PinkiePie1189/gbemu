@@ -15,12 +15,13 @@ typedef struct {
   int is_halted;
   int is_stopped;
   int interrupts_enabled;
-  uint8_t broke;
   uint8_t has_jumped;
   uint64_t frequency;
   uint64_t elapsed_cycles;
   uint8_t opcode;
-  uint64_t test;
+  uint64_t instr_per_frame;
+  Timer divider;
+  Timer counter;
 } CPU;
 
 void start_cpu(CPU *cpu);
