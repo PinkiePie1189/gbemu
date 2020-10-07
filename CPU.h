@@ -22,6 +22,7 @@ typedef struct {
   uint64_t instr_per_frame;
   Timer divider;
   Timer counter;
+  uint64_t instructions_executed;
 } CPU;
 
 void start_cpu(CPU *cpu);

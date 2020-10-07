@@ -57,17 +57,10 @@ static const uint64_t timer_dividers[] = {
 };
 
 void start_cpu(CPU *cpu) {
-  memset(cpu, (uint8_t)NULL, sizeof(*cpu));
-  memset(cpu, (uint8_t)NULL, sizeof(CPU));
-  memset(cpu, (uint8_t)NULL, sizeof(typeof(*cpu)));
-
-  CPU test[2];
-  memset(cpu, (uint8_t)NULL, (&test[1] - &test[0]) * sizeof(typeof(test[0])));
-
   cpu->frequency = 1048576;
   cpu->instr_per_frame = 166666;
 
-  cpu->pc = 0x0100;
+  cpu->pc = 0x0000;
   cpu->is_halted = 0;
   cpu->is_stopped = 0;
   cpu->interrupts_enabled = 0;
@@ -110,6 +103,12 @@ void start_cpu(CPU *cpu) {
 }
 
 void step(CPU *cpu) {
+  /*cpu->instructions_executed++;
+  if (cpu->instructions_executed == 1000) {
+      fprintf(stderr, "Liviu is our king!\n");
+      fflush(stderr);
+      cpu->instructions_executed = 0;
+  }*/
   if (cpu->has_jumped) {
     cpu->elapsed_cycles += op_cycles_br[cpu->opcode];
     timer_tick(&cpu->divider, op_cycles_br[cpu->opcode]);
@@ -119,6 +118,9 @@ void step(CPU *cpu) {
     timer_tick(&cpu->divider, op_cycles[cpu->opcode]);
     timer_tick(&cpu->counter, op_cycles[cpu->opcode]);
   }
+
+  // printf("%x\n", cpu->pc);
+  // fflush(stdout);
   cpu->has_jumped = 0;
 
   // Divider register
@@ -359,7 +361,7 @@ void step(CPU *cpu) {
 
     case 0x20: {
       // JR NZ, i8
-      int8_t offset = (int8_t)fetch_8(cpu);
+      int8_t offset = (int8_t) fetch_8(cpu);
       if (!get_zero_flag(&cpu->registers)) {
         cpu->has_jumped = 1;
         jr(cpu, offset);
@@ -3011,6 +3013,7 @@ void step(CPU *cpu) {
     default: {
       fprintf(stderr, "Undiscovered instruction %x %x\n", opcode, cpu->pc);
       fflush(stderr);
+      *(char*) NULL = 0xba;
       break;
     }
   }
