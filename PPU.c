@@ -1,10 +1,14 @@
 #include "PPU.h"
 #include "util.h"
 
+
+int x_max = -1;
+int y_max = -1;
+
 void init_ppu(PPU *ppu, uint8_t *memory) {
     ppu->memory = memory;
     update_lcdc(ppu);
-    create_display(&ppu->display, "Liviu e un scump", 256, 256);
+    create_display(&ppu->display, "Liviu e un scump", SCREEN_WIDTH, SCREEN_HEIGHT);
     memset(ppu->good_pixels, 0, MAX_MAP * MAX_MAP);
 }
 
@@ -34,23 +38,16 @@ void update_ppu(PPU *ppu) {
     update_lcdc(ppu);
     update_palette(ppu);
 
-
-        
     uint8_t current_y = ppu->memory[LY_ADDRESS];
 
     if (current_y < 144) {
         fill_bg_line(ppu);
-        for (int i = 0; i < MAX_MAP; i++) {
-            // printf("%d ", ppu->bg_map[current_y][i]);
-        }
-        // printf("\n\n");
     }
 
     // printf("%d\n", current_y);
     if (current_y == 144) {
         // V-BLANK has occured
         ppu->memory[0xFF0F] |= 1;
-        ppu->memory[0xFFFF] |= 1;
     }
 
     if (current_y == 153) {
@@ -104,12 +101,17 @@ void fill_bg_line(PPU *ppu) {
 }
 
 void draw_screen(PPU *ppu) {
+    // TODO: Optimize this with a texture
+    // clear_display(&ppu->display);
     update_palette(ppu);
     int colors[] = {0xFFFFFF, 0xAAAAAA, 0x555555, 0x000000};
-    for (int i = 0; i < MAX_MAP; i++) {
-        for (int j = 0; j < MAX_MAP; j++) {
-            int to_draw = colors[ppu->bg_palette[ppu->good_pixels[i][j]]];
-            draw_pixel(&ppu->display, j, i, to_draw);
+    int scroll_y = ppu->memory[SCX_ADDRESS];
+    int scroll_x = ppu->memory[SCY_ADDRESS];
+
+    for (int i = scroll_x; i < (scroll_x + SCREEN_WIDTH); i++) {
+        for (int j = scroll_y; j < (scroll_y + SCREEN_HEIGHT); j++) {
+            int to_draw = colors[ppu->bg_palette[ppu->good_pixels[i % MAX_MAP][j % MAX_MAP]]];        
+            draw_pixel(&ppu->display, j - scroll_y, i - scroll_x, to_draw);
         }
     }
     present_display(&ppu->display);

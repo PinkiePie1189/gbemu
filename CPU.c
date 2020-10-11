@@ -60,7 +60,7 @@ void start_cpu(CPU *cpu) {
   cpu->frequency = 1048576;
   cpu->instr_per_frame = 166666;
 
-  cpu->pc = 0x0000;
+  cpu->pc = 0x0100;
   cpu->is_halted = 0;
   cpu->is_stopped = 0;
   cpu->interrupts_enabled = 0;

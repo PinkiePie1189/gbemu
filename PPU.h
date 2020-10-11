@@ -5,11 +5,15 @@
 #include "Display.h"
 
 #define MAX_MAP 256
+#define SCREEN_WIDTH 160
+#define SCREEN_HEIGHT 144
 #define STAT_ADDRESS 0xFF41
 #define LCDC_ADDRESS 0xFF40
 #define BGP_ADDRESS 0xFF47
 #define LY_ADDRESS 0xFF44
 #define LYC_ADDRESS 0xFF45
+#define SCX_ADDRESS 0xFF43
+#define SCY_ADDRESS 0xFF42
 #define TILE_DATA_LO_0 0x9000
 #define TILE_DATA_LO_1 0x8000
 

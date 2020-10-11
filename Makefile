@@ -33,17 +33,17 @@ util.o: util.c util.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 run_tests:
-	timeout 10 ./gbemu 01.gb 01.gb || true
-	timeout 10 ./gbemu 02.gb 02.gb || true
-	timeout 10 ./gbemu 03.gb 03.gb || true
-	timeout 10 ./gbemu 04.gb 04.gb || true
-	timeout 10 ./gbemu 05.gb 05.gb || true
-	timeout 10 ./gbemu 06.gb 06.gb || true
-	timeout 10 ./gbemu 07.gb 07.gb || true
-	timeout 10 ./gbemu 08.gb 08.gb || true
-	timeout 15 ./gbemu 09.gb 09.gb || true
-	timeout 20 ./gbemu 10.gb 10.gb || true
-	timeout 25 ./gbemu 11.gb 11.gb || true
+	timeout 70 ./gbemu 01.gb 01.gb || true
+	timeout 70 ./gbemu 02.gb 02.gb || true
+	timeout 70 ./gbemu 03.gb 03.gb || true
+	timeout 70 ./gbemu 04.gb 04.gb || true
+	timeout 70 ./gbemu 05.gb 05.gb || true
+	timeout 70 ./gbemu 06.gb 06.gb || true
+	timeout 70 ./gbemu 07.gb 07.gb || true
+	timeout 70 ./gbemu 08.gb 08.gb || true
+	timeout 75 ./gbemu 09.gb 09.gb || true
+	timeout 70 ./gbemu 10.gb 10.gb || true
+	timeout 75 ./gbemu 11.gb 11.gb || true
  
 .PHONY: clean
 clean:

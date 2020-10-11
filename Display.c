@@ -14,6 +14,9 @@ void create_display(Display *disp, char *title, int width, int height) {
         fprintf(stderr, "Renderer creation failed! %s\n", SDL_GetError());
         return;
     }
+    disp->screen_texture = SDL_CreateTexture(disp->renderer,
+        SDL_PIXELFORMAT_RGBA4444, SDL_TEXTUREACCESS_STREAMING,
+        width, height);
 }
 
 void draw_pixel(Display *disp, int x, int y, int color) {
@@ -26,6 +29,7 @@ void draw_pixel(Display *disp, int x, int y, int color) {
 }
 
 void clear_display(Display *disp) {
+    SDL_SetRenderDrawColor(disp->renderer, 0xFF, 0xFF, 0xFF, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(disp->renderer);
 }
 
