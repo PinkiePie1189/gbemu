@@ -47,7 +47,7 @@ void update_ppu(PPU *ppu) {
     // printf("%d\n", current_y);
     if (current_y == 144) {
         // V-BLANK has occured
-        ppu->memory[0xFF0F] |= 1;
+        // ppu->memory[0xFF0F] |= 1;
     }
 
     if (current_y == 153) {

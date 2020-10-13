@@ -64,17 +64,23 @@ int main(int argc, char *argv[]) {
       cpu.memory[0xFF01] = 0x00;
     }
 
-    /*if (cpu.memory[LY_ADDRESS] == cpu.memory[LYC_ADDRESS]) {
+    if (cpu.memory[LY_ADDRESS] == cpu.memory[LYC_ADDRESS]) {
         cpu.memory[STAT_ADDRESS] |= (1 << 6);
         if (cpu.interrupts_enabled) {
             cpu.memory[0xFF0F] |= (1 << 1);
-            cpu.memory[0xFFFF] |= (1 << 1);
         }
-    }*/
+    }
 
     update_ppu(&ppu);
+
+    if (cpu.memory[LY_ADDRESS] == 144) {
+      if (cpu.interrupts_enabled) {
+        cpu.memory[0xFF0F] |= 1;
+      }
+    }
+
     clock_t curr = clock();
-    if ((double) curr - last >= CLOCKS_PER_SEC * 0.016) {
+    if (((double) curr - last) >= CLOCKS_PER_SEC * 0.016) {
         last = curr;
         draw_screen(&ppu);
     }
