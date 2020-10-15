@@ -24,12 +24,12 @@ void draw_pixel(Display *disp, int x, int y, int color) {
     uint8_t g = (color >> 8) & 0xFF;
     uint8_t b = (color) & 0xFF;
     SDL_SetRenderDrawColor(disp->renderer, r, g, b, SDL_ALPHA_OPAQUE);
-    SDL_Rect pixel = {x, y, 1, 1};
+    SDL_Rect pixel = {2 * x, 2 * y, 2, 2};
     SDL_RenderFillRect(disp->renderer, &pixel);
 }
 
 void clear_display(Display *disp) {
-    SDL_SetRenderDrawColor(disp->renderer, 0xFF, 0xFF, 0xFF, SDL_ALPHA_OPAQUE);
+    // SDL_SetRenderDrawColor(disp->renderer, 0xFF, 0xFF, 0xFF, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(disp->renderer);
 }
 

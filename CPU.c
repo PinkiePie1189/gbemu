@@ -60,7 +60,7 @@ void start_cpu(CPU *cpu) {
   cpu->frequency = 1048576;
   cpu->instr_per_frame = 166666;
 
-  cpu->pc = 0x0100;
+  cpu->pc = 0x0000;
   cpu->is_halted = 0;
   cpu->is_stopped = 0;
   cpu->interrupts_enabled = 0;
@@ -103,6 +103,9 @@ void start_cpu(CPU *cpu) {
 }
 
 void step(CPU *cpu) {
+
+  // shoddy
+  cpu->memory[0xFF00] = 0xFF;
   /*cpu->instructions_executed++;
   if (cpu->instructions_executed == 1000) {
       fprintf(stderr, "Liviu is our king!\n");
@@ -119,8 +122,7 @@ void step(CPU *cpu) {
     timer_tick(&cpu->counter, op_cycles[cpu->opcode]);
   }
 
-  // printf("%x\n", cpu->pc);
-  // fflush(stdout);
+
   cpu->has_jumped = 0;
 
   // Divider register
@@ -158,8 +160,16 @@ void step(CPU *cpu) {
     return;
   }
 
+  // shoddy
+  if (cpu->pc == BIOS_SIZE) {
+    memcpy(cpu->memory, cpu->dummy, BIOS_SIZE);
+  }
+
   cpu->opcode = fetch_8(cpu);
   uint8_t opcode = cpu->opcode;
+
+  /*printf("%x %x %x %x\n", cpu->pc, cpu->opcode, cpu->registers.hl, cpu->registers.de);
+  fflush(stdout);*/
 
   switch (opcode) {
     case 0x00: {

@@ -6,12 +6,14 @@
 #include "Registers.h"
 
 #define MAX_MEMORY 0xFFFF + 1
+#define BIOS_SIZE 0x0100
 
 typedef struct {
   Registers registers;
   uint16_t pc;
   uint16_t sp;
   uint8_t memory[MAX_MEMORY];
+  uint8_t dummy[BIOS_SIZE];
   int is_halted;
   int is_stopped;
   int interrupts_enabled;

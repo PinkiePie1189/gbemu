@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
+
 int main(int argc, char *argv[]) {
 
   if (SDL_Init(SDL_INIT_EVERYTHING) < 0) {
@@ -33,8 +34,9 @@ int main(int argc, char *argv[]) {
 
   fseek(rom, 0, SEEK_END);
   int rom_size = ftell(rom);
+  fseek(rom, 0, SEEK_SET);
   // printf("%d", rom_size);
-  fseek(rom, 0x0100, SEEK_SET);
+  fread(cpu.dummy, 0x100, sizeof(uint8_t), rom);
   fread(cpu.memory + 0x0100, rom_size - 0x0100, sizeof(uint8_t), rom);
   // printf("!!!%d", cpu.memory[0x101]);
   fclose(rom);
@@ -70,6 +72,8 @@ int main(int argc, char *argv[]) {
             cpu.memory[0xFF0F] |= (1 << 1);
         }
     }
+
+
 
     update_ppu(&ppu);
 

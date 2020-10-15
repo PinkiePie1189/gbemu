@@ -8,7 +8,7 @@ int y_max = -1;
 void init_ppu(PPU *ppu, uint8_t *memory) {
     ppu->memory = memory;
     update_lcdc(ppu);
-    create_display(&ppu->display, "Liviu e un scump", SCREEN_WIDTH, SCREEN_HEIGHT);
+    create_display(&ppu->display, "Liviu e un scump", 2 * SCREEN_WIDTH, 2 * SCREEN_HEIGHT);
     memset(ppu->good_pixels, 0, MAX_MAP * MAX_MAP);
 }
 
@@ -38,24 +38,20 @@ void update_ppu(PPU *ppu) {
     update_lcdc(ppu);
     update_palette(ppu);
 
-    uint8_t current_y = ppu->memory[LY_ADDRESS];
+    if (ppu->lcdc.display_enabled) {
+        uint8_t current_y = ppu->memory[LY_ADDRESS];
 
-    if (current_y < 144) {
-        fill_bg_line(ppu);
+        if (current_y < 144) {
+            fill_bg_line(ppu);
+        }
+
+        if (current_y == 153) {
+            memcpy(ppu->good_pixels, ppu->bg_map, MAX_MAP * MAX_MAP);
+        }
+
+        ppu->memory[LY_ADDRESS]++;
+        ppu->memory[LY_ADDRESS] %= 154;
     }
-
-    // printf("%d\n", current_y);
-    if (current_y == 144) {
-        // V-BLANK has occured
-        // ppu->memory[0xFF0F] |= 1;
-    }
-
-    if (current_y == 153) {
-        memcpy(ppu->good_pixels, ppu->bg_map, MAX_MAP * MAX_MAP);
-    }
-
-    ppu->memory[LY_ADDRESS]++;
-    ppu->memory[LY_ADDRESS] %= 154;
 }
 
 void fill_bg_tile(PPU *ppu, uint8_t tile_offset, int x, int y) {
@@ -108,9 +104,13 @@ void draw_screen(PPU *ppu) {
     int scroll_y = ppu->memory[SCX_ADDRESS];
     int scroll_x = ppu->memory[SCY_ADDRESS];
 
-    for (int i = scroll_x; i < (scroll_x + SCREEN_WIDTH); i++) {
-        for (int j = scroll_y; j < (scroll_y + SCREEN_HEIGHT); j++) {
-            int to_draw = colors[ppu->bg_palette[ppu->good_pixels[i % MAX_MAP][j % MAX_MAP]]];        
+    // printf("%d %d\n", scroll_x, scroll_y);
+
+
+    // TODO make sure this is correct
+    for (int i = scroll_x; i < (scroll_y + SCREEN_HEIGHT); i++) {
+        for (int j = scroll_y; j < (scroll_x + SCREEN_WIDTH); j++) {
+            int to_draw = colors[ppu->bg_palette[ppu->good_pixels[i % MAX_MAP][j % MAX_MAP]]];
             draw_pixel(&ppu->display, j - scroll_y, i - scroll_x, to_draw);
         }
     }
