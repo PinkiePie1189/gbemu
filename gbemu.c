@@ -61,7 +61,7 @@ int main(int argc, char *argv[]) {
     step(&cpu);
     // printf("%d %d\n", cpu.interrupts_enabled, cpu.memory[0xFFFF]);
     if (cpu.memory[0xFF01]) {
-      printf("%c", cpu.memory[0xFF01]);
+      // printf("%c", cpu.memory[0xFF01]);
       fflush(stdout);
       cpu.memory[0xFF01] = 0x00;
     }

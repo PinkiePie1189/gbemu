@@ -27,10 +27,14 @@ void update_lcdc(PPU *ppu) {
 
 void update_palette(PPU *ppu) {
     uint8_t bgp_byte = ppu->memory[BGP_ADDRESS];
-    ppu->bg_palette[3] = (get_bit(bgp_byte, 6) << 1) | get_bit(bgp_byte, 7);
-    ppu->bg_palette[2] = (get_bit(bgp_byte, 4) << 1) | get_bit(bgp_byte, 5);
-    ppu->bg_palette[1] = (get_bit(bgp_byte, 2) << 1) | get_bit(bgp_byte, 3);
-    ppu->bg_palette[0] = (get_bit(bgp_byte, 0) << 1) | get_bit(bgp_byte, 1);
+    uint8_t obp0_byte = ppu->memory[OBP0_ADDRESS];
+    uint8_t obp1_byte = ppu->memory[OBP1_ADDRESS];
+
+    for (int i = 0; i < 4; i++) {
+        ppu->bg_palette[3 - i] = (get_bit(bgp_byte, 6 - 2 * i) << 1) | get_bit(bgp_byte, 7 - 2 * i);
+        ppu->obp_0[3 - i] = (get_bit(obp0_byte, 6 - 2 * i) << 1) | get_bit(obp0_byte, 7 - 2 * i);
+        ppu->obp_1[3 - i] = (get_bit(obp1_byte, 6 - 2 * i) << 1) | get_bit(obp1_byte, 7 - 2 * i);
+    }
 }
 
 void update_ppu(PPU *ppu) {
@@ -38,11 +42,15 @@ void update_ppu(PPU *ppu) {
     update_lcdc(ppu);
     update_palette(ppu);
 
+    oam_search(ppu);
     if (ppu->lcdc.display_enabled) {
         uint8_t current_y = ppu->memory[LY_ADDRESS];
 
         if (current_y < 144) {
             fill_bg_line(ppu);
+            if (ppu->lcdc.sprites_enabled) {
+                fill_sprite_line(ppu);
+            }
         }
 
         if (current_y == 153) {
@@ -51,6 +59,8 @@ void update_ppu(PPU *ppu) {
 
         ppu->memory[LY_ADDRESS]++;
         ppu->memory[LY_ADDRESS] %= 154;
+
+
     }
 }
 
@@ -90,7 +100,7 @@ void fill_bg_line(PPU *ppu) {
         uint8_t lower_bits = ppu->memory[data_address + 2 * (current_line % 8)];
         uint8_t upper_bits = ppu->memory[data_address + 2 * (current_line % 8) + 1];
         for (int j = 7; j >= 0; j--) {
-            uint8_t color = (get_bit(upper_bits, j) << 1) | (get_bit(lower_bits, j));
+            uint8_t color = ppu->bg_palette[(get_bit(upper_bits, j) << 1) | (get_bit(lower_bits, j))];
             ppu->bg_map[current_line][8 * i + 7 - j] = color;
         }
     }
@@ -110,9 +120,70 @@ void draw_screen(PPU *ppu) {
     // TODO make sure this is correct
     for (int i = scroll_x; i < (scroll_y + SCREEN_HEIGHT); i++) {
         for (int j = scroll_y; j < (scroll_x + SCREEN_WIDTH); j++) {
-            int to_draw = colors[ppu->bg_palette[ppu->good_pixels[i % MAX_MAP][j % MAX_MAP]]];
+            int to_draw = colors[ppu->good_pixels[i % MAX_MAP][j % MAX_MAP]];
             draw_pixel(&ppu->display, j - scroll_y, i - scroll_x, to_draw);
         }
     }
     present_display(&ppu->display);
+}
+
+void oam_search(PPU *ppu) {
+    update_lcdc(ppu);
+    uint8_t sprite_height = 8 * (ppu->lcdc.sprite_size + 1);
+    uint8_t current_line = ppu->memory[LY_ADDRESS];
+
+    // Hardcode the Tetris arrow
+    // before we have DMA for debug
+    ppu->memory[OAM_START] = 0x80;
+    ppu->memory[OAM_START + 1] = 0x10;
+    ppu->memory[OAM_START + 2] = 0x58;
+    ppu->memory[OAM_START + 3] = 0x00;
+    ppu->cnt_sprites = 0;
+    for (int i = OAM_START; i <= OAM_END && ppu->cnt_sprites < 10; i += 4) {
+        uint8_t sprite_y = ppu->memory[i];
+        uint8_t sprite_x = ppu->memory[i + 1];
+        if (sprite_x > 0 && (current_line + 16) >= sprite_y && (current_line + 16) < (sprite_y + sprite_height)) {
+            ppu->line_sprites[ppu->cnt_sprites++] = i;
+        }
+    }
+}
+
+void fill_sprite_line(PPU *ppu) {
+
+    update_lcdc(ppu);
+    uint8_t sprite_height = 8 * (ppu->lcdc.sprite_size + 1);
+    uint8_t current_line = ppu->memory[LY_ADDRESS];
+
+    printf("%x\n", sprite_height);
+    // For each sprite found during OAM Search
+    for (int i = 0; i < ppu->cnt_sprites; i++) {
+        uint8_t sprite_y = ppu->memory[ppu->line_sprites[i]];
+        uint8_t sprite_x = ppu->memory[ppu->line_sprites[i] + 1];
+
+        sprite_y += 16;
+        sprite_x += 8;
+
+        uint8_t tile_offset = ppu->memory[ppu->line_sprites[i] + 2];
+        uint8_t properties = ppu->memory[ppu->line_sprites[i] + 3];
+
+
+        // Premature optimisation is the root of all evil
+        uint16_t data_address = TILE_DATA_LO_1 + 2 * sprite_height * tile_offset;
+
+        uint8_t lower_bits = ppu->memory[data_address + 2 * (current_line - sprite_y)];
+        uint8_t upper_bits = ppu->memory[data_address + 2 * (current_line - sprite_y) + 1];
+
+        for (int j = 7; j >= 0; j--) {
+            if (sprite_x + j < MAX_MAP) {
+                uint8_t color = (get_bit(upper_bits, j) << 1) | (get_bit(lower_bits, j));
+                if (!get_bit(properties, 4)) {
+                    color = ppu->obp_0[color];
+                } else {
+                    color = ppu->obp_1[color];
+                }
+                ppu->bg_map[current_line][sprite_x + 7 - j] = color;
+            }
+        }
+
+    }
 }

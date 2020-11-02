@@ -1,6 +1,6 @@
 build-*
 *.pro
 *.pro.user
-Makefile
 .qmake*
 *.gb
+*.sh
