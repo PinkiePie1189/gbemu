@@ -4,3 +4,5 @@ build-*
 .qmake*
 *.gb
 *.sh
+*.o
+gbemu
