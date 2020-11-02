@@ -1,5 +1,6 @@
 #include "CPU.h"
 #include "PPU.h"
+#include "MMU.h"
 #include <SDL2/SDL.h>
 #include <time.h>
 #include <stdint.h>
@@ -24,22 +25,28 @@ int main(int argc, char *argv[]) {
   start_cpu(&cpu);
 
   // Load BIOS in memory
-  FILE *bios = fopen(argv[1], "rb");
-
-  fread(cpu.memory, 0x100, sizeof(uint8_t), bios);
-  fclose(bios);
+  load_bios(&cpu.mmu, argv[1]);
 
   // Load ROM in memory
-  FILE *rom = fopen(argv[2], "rb");
+  load_rom(&cpu.rom, argv[2]);
 
-  fseek(rom, 0, SEEK_END);
-  int rom_size = ftell(rom);
-  fseek(rom, 0, SEEK_SET);
-  // printf("%d", rom_size);
-  fread(cpu.dummy, 0x100, sizeof(uint8_t), rom);
-  fread(cpu.memory + 0x0100, rom_size - 0x0100, sizeof(uint8_t), rom);
-  // printf("!!!%d", cpu.memory[0x101]);
-  fclose(rom);
+  // // Load BIOS in memory
+  // FILE *bios = fopen(argv[1], "rb");
+
+  // fread(cpu.memory, 0x100, sizeof(uint8_t), bios);
+  // fclose(bios);
+
+  // // Load ROM in memory
+  // FILE *rom = fopen(argv[2], "rb");
+
+  // fseek(rom, 0, SEEK_END);
+  // int rom_size = ftell(rom);
+  // fseek(rom, 0, SEEK_SET);
+  // // printf("%d", rom_size);
+  // fread(cpu.dummy, 0x100, sizeof(uint8_t), rom);
+  // fread(cpu.memory + 0x0100, rom_size - 0x0100, sizeof(uint8_t), rom);
+  // // printf("!!!%d", cpu.memory[0x101]);
+  // fclose(rom);
 
 
   PPU ppu;
