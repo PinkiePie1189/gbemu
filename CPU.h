@@ -6,8 +6,15 @@
 #include "Registers.h"
 #include "MMU.h"
 
-#define MAX_MEMORY 0xFFFF + 1
 #define BIOS_SIZE 0x0100
+
+#define INT_REGISTER 0xFF0F
+#define INT_ENABLE 0xFFFF
+#define VBLANK_INT 0
+#define STAT_INT 1
+#define TIMER_INT 2
+#define SERIAL_INT 3
+#define JOYPAD_INT 4
 
 typedef struct {
   Registers registers;
@@ -88,5 +95,9 @@ void set_8(CPU *cpu, uint8_t *dest, uint8_t bit);
 
 // DAA in all his might
 void daa_8(CPU *cpu, uint8_t *dest);
+
+
+// Request interrupts
+void request_interrupt(CPU *cpu, uint8_t type);
 
 #endif  // CPU_H

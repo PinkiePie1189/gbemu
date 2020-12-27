@@ -1,6 +1,6 @@
 CC=gcc
 
-CFLAGS=-Wall -Wextra -g
+CFLAGS=-Wall -Wextra -Wpedantic -g
 
 LFLAGS=-lSDL2
 
@@ -8,7 +8,7 @@ LFLAGS=-lSDL2
 
 build: gbemu
 
-gbemu: gbemu.o cpu.o registers.o instructions.o error.o ppu.o display.o util.o
+gbemu: gbemu.o cpu.o registers.o error.o ppu.o display.o util.o mmu.o
 
 	$(CC) $(CFLAGS) $^ -o $@ $(LFLAGS)
 
@@ -16,9 +16,10 @@ gbemu.o: gbemu.c CPU.h
 
 	$(CC) $(CFLAGS) -c $< -o $@
 
-cpu.o: CPU.c CPU.h Registers.h Instructions.h
+cpu.o: CPU.c CPU.h Registers.h
 	$(CC) $(CFLAGS) -c $< -o $@
-
+mmu.o: MMU.c MMU.h
+	$(CC) $(CFLAGS) -c $< -o $@
 ppu.o: PPU.c PPU.h
 	$(CC) $(CFLAGS) -c $< -o $@
 display.o: Display.c Display.h
@@ -44,7 +45,6 @@ run_tests:
 	timeout 75 ./gbemu 09.gb 09.gb || true
 	timeout 70 ./gbemu 10.gb 10.gb || true
 	timeout 75 ./gbemu 11.gb 11.gb || true
- 
 .PHONY: clean
 clean:
 	rm -f *.o gbemu

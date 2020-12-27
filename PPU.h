@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "Display.h"
+#include "MMU.h"
 
 #define MAX_MAP 256
 #define SCREEN_WIDTH 160
@@ -33,7 +34,7 @@ typedef struct {
 } LCDC;
 
 typedef struct {
-    uint8_t *memory;
+    MMU *mmu;
     uint8_t bg_map[MAX_MAP][MAX_MAP];
     uint8_t good_pixels[MAX_MAP][MAX_MAP];
     uint8_t bg_palette[4];
@@ -47,7 +48,7 @@ typedef struct {
     Display display;
 } PPU;
 
-void init_ppu(PPU *ppu, uint8_t *memory);
+void init_ppu(PPU *ppu, MMU *mmu);
 
 // Update the various components of the PPU
 void update_lcdc(PPU *ppu);

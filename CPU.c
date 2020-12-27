@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "Instructions.h"
 #define DEBUG_SBC 0
 #define DEBUG_SP 0
 
@@ -78,34 +77,34 @@ void start_cpu(CPU *cpu) {
   cpu->divider.cycles_per_tick = 4096;
 
   // Setup memory
-  memset(cpu->memory, 0, sizeof(cpu->memory));
+  memset(cpu->mmu.memory, 0, sizeof(cpu->mmu.memory));
 
-  cpu->memory[0xFF04] = 0xAB;
-  cpu->memory[0xFF10] = 0x80;
-  cpu->memory[0xFF11] = 0xBF;
-  cpu->memory[0xFF12] = 0xF3;
-  cpu->memory[0xFF14] = 0xBF;
-  cpu->memory[0xFF16] = 0x3F;
-  cpu->memory[0xFF19] = 0xBF;
-  cpu->memory[0xFF1A] = 0x7F;
-  cpu->memory[0xFF1B] = 0xFF;
-  cpu->memory[0xFF1C] = 0x9F;
-  cpu->memory[0xFF1E] = 0xBF;
-  cpu->memory[0xFF20] = 0xFF;
-  cpu->memory[0xFF23] = 0xBF;
-  cpu->memory[0xFF24] = 0x77;
-  cpu->memory[0xFF25] = 0xF3;
-  cpu->memory[0xFF26] = 0xF1;
-  cpu->memory[0xFF40] = 0x91;
-  cpu->memory[0xFF47] = 0xFC;
-  cpu->memory[0xFF48] = 0xFF;
-  cpu->memory[0xFF49] = 0xFF;
+  // cpu->memory[0xFF04] = 0xAB;
+  // cpu->memory[0xFF10] = 0x80;
+  // cpu->memory[0xFF11] = 0xBF;
+  // cpu->memory[0xFF12] = 0xF3;
+  // cpu->memory[0xFF14] = 0xBF;
+  // cpu->memory[0xFF16] = 0x3F;
+  // cpu->memory[0xFF19] = 0xBF;
+  // cpu->memory[0xFF1A] = 0x7F;
+  // cpu->memory[0xFF1B] = 0xFF;
+  // cpu->memory[0xFF1C] = 0x9F;
+  // cpu->memory[0xFF1E] = 0xBF;
+  // cpu->memory[0xFF20] = 0xFF;
+  // cpu->memory[0xFF23] = 0xBF;
+  // cpu->memory[0xFF24] = 0x77;
+  // cpu->memory[0xFF25] = 0xF3;
+  // cpu->memory[0xFF26] = 0xF1;
+  // cpu->memory[0xFF40] = 0x91;
+  // cpu->memory[0xFF47] = 0xFC;
+  // cpu->memory[0xFF48] = 0xFF;
+  // cpu->memory[0xFF49] = 0xFF;
 }
 
 void step(CPU *cpu) {
 
   // shoddy
-  cpu->memory[0xFF00] = 0xFF;
+  write8(&cpu->mmu, 0xFF00, 0xFF);
   /*cpu->instructions_executed++;
   if (cpu->instructions_executed == 1000) {
       fprintf(stderr, "Liviu is our king!\n");
@@ -127,30 +126,35 @@ void step(CPU *cpu) {
 
   // Divider register
 
-  cpu->memory[0xFF04] = get_timer_value(&cpu->divider);
-  cpu->counter.enabled = (cpu->memory[0xFF07] & 0b100) > 0;
-  set_timer_tick(&cpu->counter, timer_dividers[cpu->memory[0xFF07] & 0b11]);
+  write8(&cpu->mmu, 0xFF04, get_timer_value(&cpu->divider));
+  cpu->counter.enabled = (read8(&cpu->mmu, 0xFF07) & 0b100) > 0;
+  set_timer_tick(&cpu->counter, timer_dividers[read8(&cpu->mmu, 0xFF07) & 0b11]);
 
   if (timer_overflowed(&cpu->counter)) {
-    uint8_t mask = 1 << 2;
-    cpu->memory[0xFF0F] |= mask;
+    request_interrupt(cpu, TIMER_INT);
 
-    cpu->counter.value = cpu->memory[0xFF06];
+    cpu->counter.value = read8(&cpu->mmu, 0xFF06);
   }
 
   // Check interrupts
-  if (cpu->memory[0xFF0F] != 0) {
+  if (read8(&cpu->mmu, INT_REGISTER) != 0) {
     cpu->is_halted = 0;
   }
+
   if (cpu->interrupts_enabled) {
     uint16_t int_vector = 0x40;
     for (uint8_t mask = 1; mask <= 1 << 4; mask <<= 1) {
-      if ((cpu->memory[0xFF0F] & mask) && (cpu->memory[0xFFFF] & mask)) {
+
+      uint8_t int_register = read8(&cpu->mmu, INT_REGISTER);
+      uint8_t int_enable = read8(&cpu->mmu, INT_ENABLE);
+
+      if ((int_register & mask) && (int_enable & mask)) {
         cpu->interrupts_enabled = 0;
-        cpu->memory[0xFF0F] &= ~mask;
+        write8(&cpu->mmu, INT_REGISTER, int_register & (~mask));
         call(cpu, int_vector);
         break;
       }
+
       int_vector += 0x8;
     }
   }
@@ -160,13 +164,9 @@ void step(CPU *cpu) {
     return;
   }
 
-  // shoddy
-  if (cpu->pc == BIOS_SIZE) {
-    memcpy(cpu->memory, cpu->dummy, BIOS_SIZE);
-  }
-
   cpu->opcode = fetch_8(cpu);
   uint8_t opcode = cpu->opcode;
+  uint8_t hl_byte = read8(&cpu->mmu, cpu->registers.hl);
 
   /*printf("%x %x %x %x\n", cpu->pc, cpu->opcode, cpu->registers.hl, cpu->registers.de);
   fflush(stdout);*/
@@ -185,7 +185,7 @@ void step(CPU *cpu) {
 
     case 0x02: {
       // LD (BC), A
-      write_8(cpu, cpu->registers.bc, cpu->registers.a);
+      write8(&cpu->mmu, cpu->registers.bc, cpu->registers.a);
       break;
     }
 
@@ -222,7 +222,7 @@ void step(CPU *cpu) {
 
     case 0x08: {
       // LD (u16), SP
-      write_16(cpu, fetch_16(cpu), cpu->sp);
+      write16(&cpu->mmu, fetch_16(cpu), cpu->sp);
       break;
     }
 
@@ -235,7 +235,7 @@ void step(CPU *cpu) {
     case 0x0A: {
       // LD A, (BC)
       uint16_t address = cpu->registers.bc;
-      cpu->registers.a = cpu->memory[address];
+      cpu->registers.a = read8(&cpu->mmu, address);
       break;
     }
 
@@ -285,7 +285,7 @@ void step(CPU *cpu) {
 
     case 0x12: {
       // LD (DE), A
-      write_8(cpu, cpu->registers.de, cpu->registers.a);
+      write8(&cpu->mmu, cpu->registers.de, cpu->registers.a);
       break;
     }
 
@@ -334,7 +334,7 @@ void step(CPU *cpu) {
 
     case 0x1A: {
       // LD A, (DE)
-      cpu->registers.a = cpu->memory[cpu->registers.de];
+      cpu->registers.a = read8(&cpu->mmu, cpu->registers.de);
       break;
     }
 
@@ -387,7 +387,7 @@ void step(CPU *cpu) {
 
     case 0x22: {
       // LD (HL+), A
-      write_8(cpu, cpu->registers.hl++, cpu->registers.a);
+      write8(&cpu->mmu, cpu->registers.hl++, cpu->registers.a);
       break;
     }
 
@@ -439,7 +439,7 @@ void step(CPU *cpu) {
 
     case 0x2A: {
       // LD A, (HL+)
-      cpu->registers.a = cpu->memory[cpu->registers.hl++];
+      cpu->registers.a = read8(&cpu->mmu, cpu->registers.hl++);
       break;
     }
 
@@ -493,7 +493,7 @@ void step(CPU *cpu) {
 
     case 0x32: {
       // LD (HL-), A
-      write_8(cpu, cpu->registers.hl--, cpu->registers.a);
+      write8(&cpu->mmu, cpu->registers.hl--, cpu->registers.a);
       break;
     }
 
@@ -505,19 +505,21 @@ void step(CPU *cpu) {
 
     case 0x34: {
       // INC (HL)
-      inc_8(cpu, &cpu->memory[cpu->registers.hl]);
+      inc_8(cpu, &hl_byte);
+      write8(&cpu->mmu, cpu->registers.hl, hl_byte);
       break;
     }
 
     case 0x35: {
       // DEC (HL)
-      dec_8(cpu, &cpu->memory[cpu->registers.hl]);
+      dec_8(cpu, &hl_byte);
+      write8(&cpu->mmu, cpu->registers.hl, hl_byte);
       break;
     }
 
     case 0x36: {
       // LD (HL), u8
-      write_8(cpu, cpu->registers.hl, fetch_8(cpu));
+      write8(&cpu->mmu, cpu->registers.hl, fetch_8(cpu));
       break;
     }
 
@@ -547,7 +549,7 @@ void step(CPU *cpu) {
 
     case 0x3A: {
       // LD A, (HL-)
-      cpu->registers.a = cpu->memory[cpu->registers.hl--];
+      cpu->registers.a = read8(&cpu->mmu, cpu->registers.hl--);
       break;
     }
 
@@ -621,7 +623,7 @@ void step(CPU *cpu) {
 
     case 0x46: {
       // LD B, (HL)
-      cpu->registers.b = cpu->memory[cpu->registers.hl];
+      cpu->registers.b = read8(&cpu->mmu, cpu->registers.hl);
       break;
     }
 
@@ -668,7 +670,7 @@ void step(CPU *cpu) {
 
     case 0x4E: {
       // LD C, (HL)
-      cpu->registers.c = cpu->memory[cpu->registers.hl];
+      cpu->registers.c = read8(&cpu->mmu, cpu->registers.hl);
       break;
     }
 
@@ -715,7 +717,7 @@ void step(CPU *cpu) {
 
     case 0x56: {
       // LD D, (HL)
-      cpu->registers.d = cpu->memory[cpu->registers.hl];
+      cpu->registers.d = read8(&cpu->mmu, cpu->registers.hl);
       break;
     }
 
@@ -762,7 +764,7 @@ void step(CPU *cpu) {
 
     case 0x5E: {
       // LD E, (HL)
-      cpu->registers.e = cpu->memory[cpu->registers.hl];
+      cpu->registers.e = read8(&cpu->mmu, cpu->registers.hl);
       break;
     }
 
@@ -809,7 +811,7 @@ void step(CPU *cpu) {
 
     case 0x66: {
       // LD H, (HL)
-      cpu->registers.h = cpu->memory[cpu->registers.hl];
+      cpu->registers.h = read8(&cpu->mmu, cpu->registers.hl);
       break;
     }
 
@@ -856,7 +858,7 @@ void step(CPU *cpu) {
 
     case 0x6E: {
       // LD L, (HL)
-      cpu->registers.l = cpu->memory[cpu->registers.hl];
+      cpu->registers.l = read8(&cpu->mmu, cpu->registers.hl);
       break;
     }
 
@@ -868,37 +870,37 @@ void step(CPU *cpu) {
 
     case 0x70: {
       // LD (HL), B
-      write_8(cpu, cpu->registers.hl, cpu->registers.b);
+      write8(&cpu->mmu, cpu->registers.hl, cpu->registers.b);
       break;
     }
 
     case 0x71: {
       // LD (HL), C
-      write_8(cpu, cpu->registers.hl, cpu->registers.c);
+      write8(&cpu->mmu, cpu->registers.hl, cpu->registers.c);
       break;
     }
 
     case 0x72: {
       // LD (HL), D
-      write_8(cpu, cpu->registers.hl, cpu->registers.d);
+      write8(&cpu->mmu, cpu->registers.hl, cpu->registers.d);
       break;
     }
 
     case 0x73: {
       // LD (HL), E
-      write_8(cpu, cpu->registers.hl, cpu->registers.e);
+      write8(&cpu->mmu, cpu->registers.hl, cpu->registers.e);
       break;
     }
 
     case 0x74: {
       // LD (HL), H
-      write_8(cpu, cpu->registers.hl, cpu->registers.h);
+      write8(&cpu->mmu, cpu->registers.hl, cpu->registers.h);
       break;
     }
 
     case 0x75: {
       // LD (HL), L
-      write_8(cpu, cpu->registers.hl, cpu->registers.l);
+      write8(&cpu->mmu, cpu->registers.hl, cpu->registers.l);
       break;
     }
 
@@ -910,7 +912,7 @@ void step(CPU *cpu) {
 
     case 0x77: {
       // LD (HL), A
-      write_8(cpu, cpu->registers.hl, cpu->registers.a);
+      write8(&cpu->mmu, cpu->registers.hl, cpu->registers.a);
       break;
     }
 
@@ -952,7 +954,7 @@ void step(CPU *cpu) {
 
     case 0x7E: {
       // LD A, (HL)
-      cpu->registers.a = cpu->memory[cpu->registers.hl];
+      cpu->registers.a = read8(&cpu->mmu, cpu->registers.hl);
       break;
     }
 
@@ -999,7 +1001,7 @@ void step(CPU *cpu) {
 
     case 0x86: {
       // ADD A, (HL)
-      add_8(cpu, &cpu->registers.a, cpu->memory[cpu->registers.hl]);
+      add_8(cpu, &cpu->registers.a, read8(&cpu->mmu, cpu->registers.hl));
       break;
     }
 
@@ -1047,7 +1049,7 @@ void step(CPU *cpu) {
 
     case 0x8E: {
       // ADC A, (HL)
-      adc_8(cpu, &cpu->registers.a, cpu->memory[cpu->registers.hl]);
+      adc_8(cpu, &cpu->registers.a, read8(&cpu->mmu, cpu->registers.hl));
       break;
     }
 
@@ -1095,7 +1097,7 @@ void step(CPU *cpu) {
 
     case 0x96: {
       // SUB A, (HL)
-      sub_8(cpu, &cpu->registers.a, cpu->memory[cpu->registers.hl]);
+      sub_8(cpu, &cpu->registers.a, read8(&cpu->mmu, cpu->registers.hl));
       break;
     }
 
@@ -1143,7 +1145,7 @@ void step(CPU *cpu) {
 
     case 0x9E: {
       // SBC A, (HL)
-      sbc_8(cpu, &cpu->registers.a, cpu->memory[cpu->registers.hl]);
+      sbc_8(cpu, &cpu->registers.a, read8(&cpu->mmu, cpu->registers.hl));
       break;
     }
 
@@ -1191,7 +1193,7 @@ void step(CPU *cpu) {
 
     case 0xA6: {
       // AND A, (HL)
-      and_8(cpu, &cpu->registers.a, cpu->memory[cpu->registers.hl]);
+      and_8(cpu, &cpu->registers.a, read8(&cpu->mmu, cpu->registers.hl));
       break;
     }
 
@@ -1239,7 +1241,7 @@ void step(CPU *cpu) {
 
     case 0xAE: {
       // XOR A, (HL)
-      xor_8(cpu, &cpu->registers.a, cpu->memory[cpu->registers.hl]);
+      xor_8(cpu, &cpu->registers.a, read8(&cpu->mmu, cpu->registers.hl));
       break;
     }
 
@@ -1287,7 +1289,7 @@ void step(CPU *cpu) {
 
     case 0xB6: {
       // OR A, (HL)
-      or_8(cpu, &cpu->registers.a, cpu->memory[cpu->registers.hl]);
+      or_8(cpu, &cpu->registers.a, read8(&cpu->mmu, cpu->registers.hl));
       break;
     }
 
@@ -1335,7 +1337,7 @@ void step(CPU *cpu) {
 
     case 0xBE: {
       // CP A, (HL)
-      cp_8(cpu, &cpu->registers.a, cpu->memory[cpu->registers.hl]);
+      cp_8(cpu, &cpu->registers.a, read8(&cpu->mmu, cpu->registers.hl));
       break;
     }
 
@@ -1467,7 +1469,8 @@ void step(CPU *cpu) {
         }
 
         case 0x06: {
-          rlc_8(cpu, &cpu->memory[cpu->registers.hl]);
+          rlc_8(cpu, &hl_byte);
+          write8(&cpu->mmu, cpu->registers.hl, hl_byte);
           break;
         }
 
@@ -1507,7 +1510,8 @@ void step(CPU *cpu) {
         }
 
         case 0x0E: {
-          rrc_8(cpu, &cpu->memory[cpu->registers.hl]);
+          rrc_8(cpu, &hl_byte);
+          write8(&cpu->mmu, cpu->registers.hl, hl_byte);
           break;
         }
 
@@ -1547,7 +1551,8 @@ void step(CPU *cpu) {
         }
 
         case 0x16: {
-          rl_8(cpu, &cpu->memory[cpu->registers.hl]);
+          rl_8(cpu, &hl_byte);
+          write8(&cpu->mmu, cpu->registers.hl, hl_byte);
           break;
         }
 
@@ -1587,7 +1592,8 @@ void step(CPU *cpu) {
         }
 
         case 0x1E: {
-          rr_8(cpu, &cpu->memory[cpu->registers.hl]);
+          rr_8(cpu, &hl_byte);
+          write8(&cpu->mmu, cpu->registers.hl, hl_byte);
           break;
         }
 
@@ -1627,7 +1633,8 @@ void step(CPU *cpu) {
         }
 
         case 0x26: {
-          sla_8(cpu, &cpu->memory[cpu->registers.hl]);
+          sla_8(cpu, &hl_byte);
+          write8(&cpu->mmu, cpu->registers.hl, hl_byte);
           break;
         }
 
@@ -1667,7 +1674,8 @@ void step(CPU *cpu) {
         }
 
         case 0x2E: {
-          sra_8(cpu, &cpu->memory[cpu->registers.hl]);
+          sra_8(cpu, &hl_byte);
+          write8(&cpu->mmu, cpu->registers.hl, hl_byte);
           break;
         }
 
@@ -1707,7 +1715,8 @@ void step(CPU *cpu) {
         }
 
         case 0x36: {
-          swap_8(cpu, &cpu->memory[cpu->registers.hl]);
+          swap_8(cpu, &hl_byte);
+          write8(&cpu->mmu, cpu->registers.hl, hl_byte);
           break;
         }
 
@@ -1747,7 +1756,8 @@ void step(CPU *cpu) {
         }
 
         case 0x3E: {
-          srl_8(cpu, &cpu->memory[cpu->registers.hl]);
+          srl_8(cpu, &hl_byte);
+          write8(&cpu->mmu, cpu->registers.hl, hl_byte);
           break;
         }
 
@@ -1787,7 +1797,7 @@ void step(CPU *cpu) {
         }
 
         case 0x46: {
-          bit_test(cpu, cpu->memory[cpu->registers.hl], 0);
+          bit_test(cpu, hl_byte, 0);
           break;
         }
 
@@ -1827,7 +1837,7 @@ void step(CPU *cpu) {
         }
 
         case 0x4E: {
-          bit_test(cpu, cpu->memory[cpu->registers.hl], 1);
+          bit_test(cpu, hl_byte, 1);
           break;
         }
 
@@ -1867,7 +1877,7 @@ void step(CPU *cpu) {
         }
 
         case 0x56: {
-          bit_test(cpu, cpu->memory[cpu->registers.hl], 2);
+          bit_test(cpu, hl_byte, 2);
           break;
         }
 
@@ -1907,7 +1917,7 @@ void step(CPU *cpu) {
         }
 
         case 0x5E: {
-          bit_test(cpu, cpu->memory[cpu->registers.hl], 3);
+          bit_test(cpu, hl_byte, 3);
           break;
         }
 
@@ -1947,7 +1957,7 @@ void step(CPU *cpu) {
         }
 
         case 0x66: {
-          bit_test(cpu, cpu->memory[cpu->registers.hl], 4);
+          bit_test(cpu, hl_byte, 4);
           break;
         }
 
@@ -1987,7 +1997,7 @@ void step(CPU *cpu) {
         }
 
         case 0x6E: {
-          bit_test(cpu, cpu->memory[cpu->registers.hl], 5);
+          bit_test(cpu, hl_byte, 5);
           break;
         }
 
@@ -2027,7 +2037,7 @@ void step(CPU *cpu) {
         }
 
         case 0x76: {
-          bit_test(cpu, cpu->memory[cpu->registers.hl], 6);
+          bit_test(cpu, hl_byte, 6);
           break;
         }
 
@@ -2067,7 +2077,7 @@ void step(CPU *cpu) {
         }
 
         case 0x7E: {
-          bit_test(cpu, cpu->memory[cpu->registers.hl], 7);
+          bit_test(cpu, hl_byte, 7);
           break;
         }
 
@@ -2107,7 +2117,8 @@ void step(CPU *cpu) {
         }
 
         case 0x86: {
-          res_8(cpu, &cpu->memory[cpu->registers.hl], 0);
+          res_8(cpu, &hl_byte, 0);
+          write8(&cpu->mmu, cpu->registers.hl, hl_byte);
           break;
         }
 
@@ -2147,7 +2158,8 @@ void step(CPU *cpu) {
         }
 
         case 0x8E: {
-          res_8(cpu, &cpu->memory[cpu->registers.hl], 1);
+          res_8(cpu, &hl_byte, 1);
+          write8(&cpu->mmu, cpu->registers.hl, hl_byte);
           break;
         }
 
@@ -2187,7 +2199,8 @@ void step(CPU *cpu) {
         }
 
         case 0x96: {
-          res_8(cpu, &cpu->memory[cpu->registers.hl], 2);
+          res_8(cpu, &hl_byte, 2);
+          write8(&cpu->mmu, cpu->registers.hl, hl_byte);
           break;
         }
 
@@ -2227,7 +2240,8 @@ void step(CPU *cpu) {
         }
 
         case 0x9E: {
-          res_8(cpu, &cpu->memory[cpu->registers.hl], 3);
+          res_8(cpu, &hl_byte, 3);
+          write8(&cpu->mmu, cpu->registers.hl, hl_byte);
           break;
         }
 
@@ -2267,7 +2281,8 @@ void step(CPU *cpu) {
         }
 
         case 0xA6: {
-          res_8(cpu, &cpu->memory[cpu->registers.hl], 4);
+          res_8(cpu, &hl_byte, 4);
+          write8(&cpu->mmu, cpu->registers.hl, hl_byte);
           break;
         }
 
@@ -2307,7 +2322,8 @@ void step(CPU *cpu) {
         }
 
         case 0xAE: {
-          res_8(cpu, &cpu->memory[cpu->registers.hl], 5);
+          res_8(cpu, &hl_byte, 5);
+          write8(&cpu->mmu, cpu->registers.hl, hl_byte);
           break;
         }
 
@@ -2347,7 +2363,8 @@ void step(CPU *cpu) {
         }
 
         case 0xB6: {
-          res_8(cpu, &cpu->memory[cpu->registers.hl], 6);
+          res_8(cpu, &hl_byte, 6);
+          write8(&cpu->mmu, cpu->registers.hl, hl_byte);
           break;
         }
 
@@ -2387,7 +2404,8 @@ void step(CPU *cpu) {
         }
 
         case 0xBE: {
-          res_8(cpu, &cpu->memory[cpu->registers.hl], 7);
+          res_8(cpu, &hl_byte, 7);
+          write8(&cpu->mmu, cpu->registers.hl, hl_byte);
           break;
         }
 
@@ -2427,7 +2445,8 @@ void step(CPU *cpu) {
         }
 
         case 0xC6: {
-          set_8(cpu, &cpu->memory[cpu->registers.hl], 0);
+          set_8(cpu, &hl_byte, 0);
+          write8(&cpu->mmu, cpu->registers.hl, hl_byte);
           break;
         }
 
@@ -2467,7 +2486,8 @@ void step(CPU *cpu) {
         }
 
         case 0xCE: {
-          set_8(cpu, &cpu->memory[cpu->registers.hl], 1);
+          set_8(cpu, &hl_byte, 1);
+          write8(&cpu->mmu, cpu->registers.hl, hl_byte);
           break;
         }
 
@@ -2507,7 +2527,8 @@ void step(CPU *cpu) {
         }
 
         case 0xD6: {
-          set_8(cpu, &cpu->memory[cpu->registers.hl], 2);
+          set_8(cpu, &hl_byte, 2);
+          write8(&cpu->mmu, cpu->registers.hl, hl_byte);
           break;
         }
 
@@ -2547,7 +2568,8 @@ void step(CPU *cpu) {
         }
 
         case 0xDE: {
-          set_8(cpu, &cpu->memory[cpu->registers.hl], 3);
+          set_8(cpu, &hl_byte, 3);
+          write8(&cpu->mmu, cpu->registers.hl, hl_byte);
           break;
         }
 
@@ -2587,7 +2609,8 @@ void step(CPU *cpu) {
         }
 
         case 0xE6: {
-          set_8(cpu, &cpu->memory[cpu->registers.hl], 4);
+          set_8(cpu, &hl_byte, 4);
+          write8(&cpu->mmu, cpu->registers.hl, hl_byte);
           break;
         }
 
@@ -2627,7 +2650,8 @@ void step(CPU *cpu) {
         }
 
         case 0xEE: {
-          set_8(cpu, &cpu->memory[cpu->registers.hl], 5);
+          set_8(cpu, &hl_byte, 5);
+          write8(&cpu->mmu, cpu->registers.hl, hl_byte);
           break;
         }
 
@@ -2667,7 +2691,8 @@ void step(CPU *cpu) {
         }
 
         case 0xF6: {
-          set_8(cpu, &cpu->memory[cpu->registers.hl], 6);
+          set_8(cpu, &hl_byte, 6);
+          write8(&cpu->mmu, cpu->registers.hl, hl_byte);
           break;
         }
 
@@ -2707,7 +2732,8 @@ void step(CPU *cpu) {
         }
 
         case 0xFE: {
-          set_8(cpu, &cpu->memory[cpu->registers.hl], 7);
+          set_8(cpu, &hl_byte, 7);
+          write8(&cpu->mmu, cpu->registers.hl, hl_byte);
           break;
         }
 
@@ -2850,7 +2876,7 @@ void step(CPU *cpu) {
 
     case 0xE0: {
       // LD (FF00 + u8), A
-      write_8(cpu, 0xFF00 + fetch_8(cpu), cpu->registers.a);
+      write8(&cpu->mmu, 0xFF00 + fetch_8(cpu), cpu->registers.a);
       break;
     }
 
@@ -2862,7 +2888,7 @@ void step(CPU *cpu) {
 
     case 0xE2: {
       // LD (FF00 + C), A
-      write_8(cpu, 0xFF00 + cpu->registers.c, cpu->registers.a);
+      write8(&cpu->mmu, 0xFF00 + cpu->registers.c, cpu->registers.a);
       break;
     }
 
@@ -2911,7 +2937,7 @@ void step(CPU *cpu) {
 
     case 0xEA: {
       // LD (u16), A
-      write_8(cpu, fetch_16(cpu), cpu->registers.a);
+      write8(&cpu->mmu, fetch_16(cpu), cpu->registers.a);
       break;
     }
 
@@ -2930,7 +2956,7 @@ void step(CPU *cpu) {
     case 0xF0: {
       // LD A, (FF00 + u8)
 
-      cpu->registers.a = cpu->memory[0xFF00 + fetch_8(cpu)];
+      cpu->registers.a = read8(&cpu->mmu, 0xFF00 + fetch_8(cpu));
       break;
     }
 
@@ -2944,7 +2970,7 @@ void step(CPU *cpu) {
 
     case 0xF2: {
       // LD A, (FF00+C)
-      cpu->registers.a = cpu->memory[0xFF00 + cpu->registers.c];
+      cpu->registers.a = read8(&cpu->mmu, 0xFF00 + cpu->registers.c);
       break;
     }
 
@@ -2998,7 +3024,7 @@ void step(CPU *cpu) {
 
     case 0xFA: {
       // LD A, (u16)
-      cpu->registers.a = cpu->memory[fetch_16(cpu)];
+      cpu->registers.a = read8(&cpu->mmu, fetch_16(cpu));
       break;
     }
 
@@ -3023,26 +3049,19 @@ void step(CPU *cpu) {
     default: {
       fprintf(stderr, "Undiscovered instruction %x %x\n", opcode, cpu->pc);
       fflush(stderr);
-      *(char*) NULL = 0xba;
       break;
     }
   }
 }
 
-uint8_t fetch_8(CPU *cpu) { return cpu->memory[cpu->pc++]; }
+uint8_t fetch_8(CPU *cpu) {
+  return read8(&cpu->mmu, cpu->pc++);
+}
 
 uint16_t fetch_16(CPU *cpu) {
-  uint16_t result = get_16(&cpu->memory[cpu->pc]);
+  uint16_t result = read16(&cpu->mmu, cpu->pc);
   cpu->pc += 2;
   return result;
-}
-
-void write_8(CPU *cpu, uint16_t address, uint8_t value) {
-  cpu->memory[address] = value;
-}
-
-void write_16(CPU *cpu, uint16_t address, uint16_t value) {
-  load_16(&cpu->memory[address], value);
 }
 
 void add_8(CPU *cpu, uint8_t *dest, uint8_t src) {
@@ -3211,13 +3230,13 @@ void cp_8(CPU *cpu, uint8_t *dest, uint8_t src) {
 }
 
 void pop_16(CPU *cpu, uint16_t *dest) {
-  *dest = get_16(&cpu->memory[cpu->sp]);
+  *dest = read16(&cpu->mmu, cpu->sp);
   cpu->sp += 2;
 }
 
 void push_16(CPU *cpu, uint16_t dest) {
   cpu->sp -= 2;
-  load_16(&cpu->memory[cpu->sp], dest);
+  write16(&cpu->mmu, cpu->sp, dest);
 }
 
 void jr(CPU *cpu, int8_t offset) { cpu->pc = (int16_t)cpu->pc + offset; }
@@ -3281,12 +3300,12 @@ void srl_8(CPU *cpu, uint8_t *dest) {
 }
 
 void res_8(CPU *cpu, uint8_t *dest, uint8_t bit) {
-  (void)cpu;
+  (void) cpu;
   (*dest) &= ~(1 << bit);
 }
 
 void set_8(CPU *cpu, uint8_t *dest, uint8_t bit) {
-  (void)cpu;
+  (void) cpu;
   (*dest) |= (1 << bit);
 }
 
@@ -3309,4 +3328,9 @@ void daa_8(CPU *cpu, uint8_t *dest) {
   }
   set_zero_flag(&cpu->registers, (*dest) == 0);
   set_half_carry_flag(&cpu->registers, 0);
+}
+
+void request_interrupt(CPU *cpu, uint8_t type) {
+  uint8_t int_register = read8(&cpu->mmu, INT_REGISTER);
+  write8(&cpu->mmu, INT_REGISTER, int_register | (1 << type));
 }

@@ -6,6 +6,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#define SERIAL 0xFF01
+
 
 int main(int argc, char *argv[]) {
 
@@ -24,11 +26,13 @@ int main(int argc, char *argv[]) {
   CPU cpu;
   start_cpu(&cpu);
 
+  MMU *mmu = &cpu.mmu;
+
   // Load BIOS in memory
-  load_bios(&cpu.mmu, argv[1]);
+  load_bios(mmu, argv[1]);
 
   // Load ROM in memory
-  load_rom(&cpu.rom, argv[2]);
+  load_rom(mmu, argv[2]);
 
   // // Load BIOS in memory
   // FILE *bios = fopen(argv[1], "rb");
@@ -50,7 +54,7 @@ int main(int argc, char *argv[]) {
 
 
   PPU ppu;
-  init_ppu(&ppu, cpu.memory);
+  init_ppu(&ppu, &cpu.mmu);
   clear_display(&ppu.display);
 
   clock_t last = clock();
@@ -67,16 +71,16 @@ int main(int argc, char *argv[]) {
 
     step(&cpu);
     // printf("%d %d\n", cpu.interrupts_enabled, cpu.memory[0xFFFF]);
-    if (cpu.memory[0xFF01]) {
-      // printf("%c", cpu.memory[0xFF01]);
+    if (read8(mmu, SERIAL)) {
+      printf("%c", read8(mmu, SERIAL));
       fflush(stdout);
-      cpu.memory[0xFF01] = 0x00;
+      write8(mmu, SERIAL, 0);
     }
 
-    if (cpu.memory[LY_ADDRESS] == cpu.memory[LYC_ADDRESS]) {
-        cpu.memory[STAT_ADDRESS] |= (1 << 6);
+    if (read8(mmu, LY_ADDRESS) == read8(mmu, LYC_ADDRESS)) {
+        write8(mmu, STAT_ADDRESS, read8(mmu, STAT_ADDRESS) | (1 << 6));
         if (cpu.interrupts_enabled) {
-            cpu.memory[0xFF0F] |= (1 << 1);
+            request_interrupt(&cpu, STAT_INT);
         }
     }
 
@@ -84,9 +88,12 @@ int main(int argc, char *argv[]) {
 
     update_ppu(&ppu);
 
-    if (cpu.memory[LY_ADDRESS] == 144) {
+
+    // printf("%d\n", read8(mmu, LY_ADDRESS));
+
+    if (read8(mmu, LY_ADDRESS) == 144) {
       if (cpu.interrupts_enabled) {
-        cpu.memory[0xFF0F] |= 1;
+        request_interrupt(&cpu, VBLANK_INT);
       }
     }
 
